@@ -1,4 +1,4 @@
-baseurl = "/"
+baseurl = "mpjon.es/"
 languageCode = "en-gb"
 title = "Michael Jones"
 theme = "hugo-lithium"
