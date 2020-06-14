@@ -1,0 +1,15 @@
+---
+title: Welcome
+author: Michael
+date: '2020-06-14'
+slug: welcome
+categories: []
+tags: []
+---
+
+## Hello
+
+Welcome to my personal blog.
+I've got a few ideas for content, but I'm still writing posts.
+The first few will look in detail at some of my favourite R packages.
+I want to improve my own programs, and the best way to do that is be looking at others code.

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>r on Michael Jones</title>
+    <link>/categories/r/</link>
+    <description>Recent content in r on Michael Jones</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-gb</language>
+    <lastBuildDate>Sun, 14 Jun 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/categories/r/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>gt teardown</title>
+      <link>/2020/06/14/gt-teardown/</link>
+      <pubDate>Sun, 14 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/14/gt-teardown/</guid>
+      <description>Introduction I love open source software. I love the intentions behind it, I love the range of tools available and I love the community. But for me, the best thing about open source is spotting something impressive and being able to find out how it was done.
+Reading the source written by a better1 programmer to learn from is such a powerful tool to improve your own code. I’m an okay programmer, I get by, but I want to be better.</description>
+    </item>
+    
+  </channel>
+</rss>

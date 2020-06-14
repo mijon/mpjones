@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en-gb">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.70.0" />
+
+
+<title>gt teardown - Michael Jones</title>
+<meta property="og:title" content="gt teardown - Michael Jones">
+
+
+  <link href='/favicon.ico' rel='icon' type='image/x-icon'/>
+
+
+
+  
+
+
+
+
+
+
+
+
+<link href='//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.png"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/about/">About</a></li>
+    
+    <li><a href="/post/">Posts</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">9 min read</span>
+    
+
+    <h1 class="article-title">gt teardown</h1>
+
+    
+    <span class="article-date">2020-06-14</span>
+    
+
+    <div class="article-content">
+      
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>I love open source software.
+I love the intentions behind it, I love the range of tools available and I love the community.
+But for me, the best thing about open source is spotting something impressive and being able to find out how it was done.</p>
+<p>Reading the source written by a better<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> programmer to learn from is such a powerful tool to improve your own code.
+I’m an okay programmer, I get by, but I want to be better.
+In this post, I’m going to have a close look at some R code from the <a href="https://gt.rstudio.com/">gt</a> package<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.
+This is one of the many R pacakges for generating publication-quality html tables and is written by Richard Iannone<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.
+Iannone is behind some great R packages, and he writes some of the best documentation for his packages that I have ever seen.
+Seriously, it’s better than software I pay for.</p>
+</div>
+<div id="gt" class="section level2">
+<h2>gt</h2>
+<p>Very quickly, gt makes html tables.
+It stands for ‘grammar of tables’ and borrows an idea familiar to most R programmers of a grammar to do something: ggplot2 is a grammar of graphics.</p>
+<p>This method of design leads to packages which containing many small functions that are composable into a larger whole.
+The same way a ggplot2 graphic is built up from smaller pieces linked together; or more loosely similar to how our natural language builds complex sentences from simple building blocks following a set of rules.</p>
+<p>gt lets us go from this:</p>
+<pre><code>## `summarise()` regrouping output by &#39;type&#39; (override with `.groups` argument)</code></pre>
+<pre><code>## # A tibble: 14 x 4
+## # Groups:   type [4]
+##    type    size  n_sold   price
+##    &lt;chr&gt;   &lt;chr&gt;  &lt;int&gt;   &lt;dbl&gt;
+##  1 chicken L       4932 102339 
+##  2 chicken M       3894  65224.
+##  3 chicken S       2224  28356 
+##  4 classic L       4057  74518.
+##  5 classic M       4112  60582.
+##  6 classic S       6139  69870.
+##  7 classic XL       552  14076 
+##  8 classic XXL       28   1007.
+##  9 supreme L       4564  94258.
+## 10 supreme M       4046  66475 
+## 11 supreme S       3377  47464.
+## 12 veggie  L       5403 104203.
+## 13 veggie  M       3583  57101 
+## 14 veggie  S       2663  32387.</code></pre>
+<p>to this:</p>
+<pre><code>## `summarise()` regrouping output by &#39;type&#39; (override with `.groups` argument)</code></pre>
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#wymrtbzsgr .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#wymrtbzsgr .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#wymrtbzsgr .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#wymrtbzsgr .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#wymrtbzsgr .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#wymrtbzsgr .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#wymrtbzsgr .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#wymrtbzsgr .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#wymrtbzsgr .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#wymrtbzsgr .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#wymrtbzsgr .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#wymrtbzsgr .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#wymrtbzsgr .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#wymrtbzsgr .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#wymrtbzsgr .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wymrtbzsgr .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#wymrtbzsgr .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#wymrtbzsgr .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#wymrtbzsgr .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#wymrtbzsgr .gt_left {
+  text-align: left;
+}
+
+#wymrtbzsgr .gt_center {
+  text-align: center;
+}
+
+#wymrtbzsgr .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#wymrtbzsgr .gt_font_normal {
+  font-weight: normal;
+}
+
+#wymrtbzsgr .gt_font_bold {
+  font-weight: bold;
+}
+
+#wymrtbzsgr .gt_font_italic {
+  font-style: italic;
+}
+
+#wymrtbzsgr .gt_super {
+  font-size: 65%;
+}
+
+#wymrtbzsgr .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="wymrtbzsgr" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">size</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">n_sold</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1">price</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr class="gt_group_heading_row">
+      <td colspan="3" class="gt_group_heading">chicken</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">L</td>
+      <td class="gt_row gt_center">4,932</td>
+      <td class="gt_row gt_right">$102,339.00</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">M</td>
+      <td class="gt_row gt_center">3,894</td>
+      <td class="gt_row gt_right">$65,224.50</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">S</td>
+      <td class="gt_row gt_center">2,224</td>
+      <td class="gt_row gt_right">$28,356.00</td>
+    </tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="3" class="gt_group_heading">classic<sup class="gt_footnote_marks">1</sup></td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">L</td>
+      <td class="gt_row gt_center">4,057</td>
+      <td class="gt_row gt_right">$74,518.50</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">M</td>
+      <td class="gt_row gt_center">4,112</td>
+      <td class="gt_row gt_right">$60,581.75</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">S</td>
+      <td class="gt_row gt_center">6,139</td>
+      <td class="gt_row gt_right">$69,870.25</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">XL</td>
+      <td class="gt_row gt_center">552</td>
+      <td class="gt_row gt_right">$14,076.00</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">XXL</td>
+      <td class="gt_row gt_center">28</td>
+      <td class="gt_row gt_right">$1,006.60</td>
+    </tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="3" class="gt_group_heading">supreme</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">L</td>
+      <td class="gt_row gt_center">4,564</td>
+      <td class="gt_row gt_right">$94,258.50</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">M</td>
+      <td class="gt_row gt_center">4,046</td>
+      <td class="gt_row gt_right">$66,475.00</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">S</td>
+      <td class="gt_row gt_center">3,377</td>
+      <td class="gt_row gt_right">$47,463.50</td>
+    </tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="3" class="gt_group_heading">veggie</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">L</td>
+      <td class="gt_row gt_center">5,403</td>
+      <td class="gt_row gt_right">$104,202.70</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">M</td>
+      <td class="gt_row gt_center">3,583</td>
+      <td class="gt_row gt_right">$57,101.00</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">S</td>
+      <td class="gt_row gt_center">2,663</td>
+      <td class="gt_row gt_right">$32,386.75</td>
+    </tr>
+  </tbody>
+  <tfoot class="gt_sourcenotes">
+    <tr>
+      <td class="gt_sourcenote" colspan="3">Data taken from the pizzaplace dataset of {gt}</td>
+    </tr>
+  </tfoot>
+  <tfoot>
+    <tr class="gt_footnotes">
+      <td colspan="3">
+        <p class="gt_footnote">
+          <sup class="gt_footnote_marks">
+            <em>1</em>
+          </sup>
+           
+          Includes Hawaiian pizzas
+          <br />
+        </p>
+      </td>
+    </tr>
+  </tfoot>
+</table></div>
+<p>It can do a lot more, and I fully encourrage you to check out the documentation and examples <a href="https://gt.rstudio.com/">here</a>.</p>
+</div>
+<div id="where-it-all-starts-gt" class="section level2">
+<h2>Where it all starts: <code>gt()</code></h2>
+<p>All gt tables start by calling the <code>gt()</code> function on a data frame.
+This creates a <code>gt_tbl</code> object, which is essentially a fancy list.
+Classes in R are not quite the same as classes in, say, Python.
+The methods of making classes and structring inheritance are beyond this post<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.
+But here’s the class information for our <code>gt</code> object:</p>
+<pre class="r"><code>gt_table_1 &lt;- gt(pizzaplace)
+
+class(gt_table_1)</code></pre>
+<pre><code>## [1] &quot;gt_tbl&quot; &quot;list&quot;</code></pre>
+<p>We can tell from this that while our object is a <code>gt_tbl</code> object primarily, it’s based on a <code>list</code>.
+This is good for us: We can use all the normal tools for dealing with lists to get a better idea about this <code>gt_tbl</code> object.</p>
+<p>Let’s have a look what’s inside:</p>
+<pre class="r"><code>str(gt_table_1, max.level = 1)</code></pre>
+<pre><code>## List of 16
+##  $ _data        : tibble [49,574 × 7] (S3: tbl_df/tbl/data.frame)
+##  $ _boxhead     : tibble [7 × 6] (S3: tbl_df/tbl/data.frame)
+##  $ _stub_df     : tibble [49,574 × 3] (S3: tbl_df/tbl/data.frame)
+##  $ _row_groups  : chr(0) 
+##  $ _stub_others : chr NA
+##  $ _heading     :List of 2
+##  $ _spanners    : tibble [0 × 4] (S3: tbl_df/tbl/data.frame)
+##  $ _stubhead    :List of 1
+##  $ _footnotes   : tibble [0 × 7] (S3: tbl_df/tbl/data.frame)
+##  $ _source_notes: list()
+##  $ _formats     : list()
+##  $ _styles      : tibble [0 × 7] (S3: tbl_df/tbl/data.frame)
+##  $ _summary     : list()
+##  $ _options     : tibble [128 × 5] (S3: tbl_df/tbl/data.frame)
+##  $ _transforms  : list()
+##  $ _has_built   : logi FALSE
+##  - attr(*, &quot;class&quot;)= chr [1:2] &quot;gt_tbl&quot; &quot;list&quot;</code></pre>
+<p>So we see that a single call to <code>gt()</code> has done quite a bit of work behind the scenes.</p>
+<p>The reason for constructing this object as a list lets the user add formatting etc in any order that they like.
+All the main functions from gt accept a <code>gt_tbl</code> object as their first argument and return a modified version of that <code>gt_tbl</code> object.
+This means that gt is highly pipeable<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>, and we can build up complex tables in small steps.</p>
+<p>Thsi is similar to the tidyverse/dplyr philosophy: all the functions accept and return the same class meaning that they can be used in any order and are pipeable.</p>
+<p>We see from the above that we’ve got 16 items that can be altered using gt functions.
+From a quick glance, some of these match different bits of the “Parts of a <em>gt</em> table” picture in the documentation:</p>
+<ul>
+<li>boxhead</li>
+<li>stub</li>
+<li>heading</li>
+<li>spanners</li>
+<li>footnotes</li>
+<li>source_notes</li>
+</ul>
+<p>Interestingly, we also carry a copy of the underlying data in <code>_data</code>:</p>
+<pre class="r"><code>all(gt_table_1$`_data` == pizzaplace)</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+<p>The <code>gt()</code> function itself</p>
+<p>(GO INTO THE DETAILS OF THE CONSTRUCTION, MAYBE MAKE A GRAPH OF THE INITIALISATION AND A DEEPISH DIVE INTO A SIMPLE ONE)
+(DELETE THIS CODE LISTING AFTER)</p>
+<pre class="r"><code>function (data, rowname_col = &quot;rowname&quot;, groupname_col = dplyr::group_vars(data), 
+    rownames_to_stub = FALSE, auto_align = TRUE, id = NULL, row_group.sep = getOption(&quot;gt.row_group.sep&quot;, 
+        &quot; - &quot;)) 
+{
+    validate_table_id(id)
+    if (rownames_to_stub) {
+        rowname_col &lt;- &quot;__GT_ROWNAME_PRIVATE__&quot;
+    }
+    if (length(groupname_col) == 0) {
+        groupname_col &lt;- NULL
+    }
+    if (!is.null(rowname_col) &amp;&amp; !is.null(groupname_col) &amp;&amp; any(rowname_col %in% 
+        groupname_col)) {
+        stop(&quot;The value \&quot;&quot;, rowname_col, &quot;\&quot; appears in both `rowname_col` and &quot;, 
+            &quot;`groupname_col`. These arguments must not have any values in common.&quot;, 
+            call. = FALSE)
+    }
+    data &lt;- list() %&gt;% dt_data_init(data_tbl = data, rownames_to_column = if (rownames_to_stub) 
+        rowname_col
+    else NA_character_) %&gt;% dt_boxhead_init() %&gt;% dt_stub_df_init(rowname_col = rowname_col, 
+        groupname_col = groupname_col, row_group.sep = row_group.sep) %&gt;% 
+        dt_row_groups_init() %&gt;% dt_stub_others_init() %&gt;% dt_heading_init() %&gt;% 
+        dt_spanners_init() %&gt;% dt_stubhead_init() %&gt;% dt_footnotes_init() %&gt;% 
+        dt_source_notes_init() %&gt;% dt_formats_init() %&gt;% dt_styles_init() %&gt;% 
+        dt_summary_init() %&gt;% dt_options_init() %&gt;% dt_transforms_init() %&gt;% 
+        dt_has_built_init()
+    if (!is.null(id)) {
+        data &lt;- data %&gt;% dt_options_set_value(option = &quot;table_id&quot;, 
+            value = id)
+    }
+    class(data) &lt;- c(&quot;gt_tbl&quot;, class(data))
+    if (isTRUE(auto_align)) {
+        data &lt;- data %&gt;% cols_align(align = &quot;auto&quot;)
+    }
+    data
+}</code></pre>
+<p>(LOOK AT SOME OF THE SIMPLE ELEMENTS OF THE gt_tbl LIST)
+(MAKE A NEW gt_table WHICH HAS THE GROUP ROWS SET)
+(COMPARE THE TWO)
+(ADD MORE FEATURES OF THE TABLE AND COMPARE THE CHANGES, WHERE POSSIBLE LOOK AT THE ACTUAL SOURCE CODE USED IN THE FUNCTIONS)
+(TALK ABOUT THE PRINT GENERIC)</p>
+<p>(END WITH A CONCLUSION/SUMMARY OF THE MAIN TECHNIQUES
+((MAKING AN OBJECT)
+(SETTING EVERYTHING UP READY)
+(MAKING SIMPLE FUNCTIONS THAT ACCEPT THE OBJECT DO ONE THING AND SEND IT ON ITS WAY)
+(BUILDING OFF AN EXISTING OBJECT)
+()))</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>more experienced, more knowledgable etc<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>I’m using version 0.2.0.5<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://github.com/rich-iannone">github</a>, <a href="https://twitter.com/riannone">twitter</a><a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>I’d recommend Hadley Wickham’s <a href="https://adv-r.hadley.nz/oo.html">Advanced R</a> for more information<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>using the magritter pipes common in the tidyverse: <code>%&gt;%</code><a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
+
+    </div>
+  </article>
+
+  
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+
+
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+  </body>
+</html>
+
