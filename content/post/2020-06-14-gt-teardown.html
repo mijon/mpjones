@@ -1,14 +1,13 @@
 ---
 title: gt teardown
 author: Michael
-date: '2020-06-14'
-slug: gt-teardown
+date: '2020-07-26'
 categories:
   - r
 tags:
   - r
   - teardown
-draft: true
+slug: gt-teardown
 ---
 
 <script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
@@ -19,23 +18,24 @@ draft: true
 <p>I love open source software.
 I love the intentions behind it, I love the range of tools available and I love the community.
 But for me, the best thing about open source is spotting something impressive and being able to find out how it was done.</p>
-<p>Reading the source written by a better<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> programmer to learn from is such a powerful tool to improve your own code.
-I’m an okay programmer, I get by, but I want to be better.
-In this post, I’m going to have a close look at some R code from the <a href="https://gt.rstudio.com/">gt</a> package<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.
-This is one of the many R pacakges for generating publication-quality html tables and is written by Richard Iannone<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.
-Iannone is behind some great R packages, and he writes some of the best documentation for his packages that I have ever seen.
+<p>Reading someone else’s source code lets you learn directly from them.
+You get to see how they tackle a problem and can incorporate their techniques into your own code.
+I’m an okay programmer, I get by, but I want to be better, and reading other people’s code is a good way to do that.</p>
+<p>In this post, I’m going to have a close look at some R code from the <a href="https://gt.rstudio.com/">gt</a> package<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
+This is one of the many R pacakges for generating publication-quality html tables and is written by Richard Iannone<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.
+Iannone is for force behind some great R packages, and he writes some of the best documentation that I have ever seen.
 Seriously, it’s better than software I pay for.</p>
 </div>
 <div id="gt" class="section level2">
 <h2>gt</h2>
-<p>Very quickly, gt makes html tables.
-It stands for ‘grammar of tables’ and borrows an idea familiar to most R programmers of a grammar to do something: ggplot2 is a grammar of graphics.</p>
-<p>This method of design leads to packages which containing many small functions that are composable into a larger whole.
-The same way a ggplot2 graphic is built up from smaller pieces linked together; or more loosely similar to how our natural language builds complex sentences from simple building blocks following a set of rules.</p>
+<p>gt makes html tables.
+It stands for ‘grammar of tables’ and borrows ideas familiar to many R programmers of structuring an interface through the principles of a grammar.
+It’s exactly the concept underlying <a href="https://hadley.github.io/">Hadley Wickham’s</a> graphing package, ggplot2.</p>
+<p>This structure to the design leads to packages containing small functions that do one thing, but can be composed into longer chains to achieve much more complext results<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.
+It’s the same way that a ggplot2 graphic is built up from smaller pieces linked together; or more loosely it’s similar to how our natural languages build complex sentences from simple building blocks following a set of rules.</p>
 <p>gt lets us go from this:</p>
-<pre><code>## `summarise()` regrouping output by &#39;type&#39; (override with `.groups` argument)</code></pre>
 <pre><code>## # A tibble: 14 x 4
-## # Groups:   type [4]
+## # Groups:   type, size [14]
 ##    type    size  n_sold   price
 ##    &lt;chr&gt;   &lt;chr&gt;  &lt;int&gt;   &lt;dbl&gt;
 ##  1 chicken L       4932 102339 
@@ -53,12 +53,11 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
 ## 13 veggie  M       3583  57101 
 ## 14 veggie  S       2663  32387.</code></pre>
 <p>to this:</p>
-<pre><code>## `summarise()` regrouping output by &#39;type&#39; (override with `.groups` argument)</code></pre>
 <style>html {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
 }
 
-#wymrtbzsgr .gt_table {
+#wsgmnnymun .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -81,7 +80,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-left-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_heading {
+#wsgmnnymun .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -93,7 +92,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-right-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_title {
+#wsgmnnymun .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -103,7 +102,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-bottom-width: 0;
 }
 
-#wymrtbzsgr .gt_subtitle {
+#wsgmnnymun .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -113,13 +112,13 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-top-width: 0;
 }
 
-#wymrtbzsgr .gt_bottom_border {
+#wsgmnnymun .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_col_headings {
+#wsgmnnymun .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -134,7 +133,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-right-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_col_heading {
+#wsgmnnymun .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -154,7 +153,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   overflow-x: hidden;
 }
 
-#wymrtbzsgr .gt_column_spanner_outer {
+#wsgmnnymun .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -166,15 +165,15 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   padding-right: 4px;
 }
 
-#wymrtbzsgr .gt_column_spanner_outer:first-child {
+#wsgmnnymun .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#wymrtbzsgr .gt_column_spanner_outer:last-child {
+#wsgmnnymun .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#wymrtbzsgr .gt_column_spanner {
+#wsgmnnymun .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -186,7 +185,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   width: 100%;
 }
 
-#wymrtbzsgr .gt_group_heading {
+#wsgmnnymun .gt_group_heading {
   padding: 8px;
   color: #333333;
   background-color: #FFFFFF;
@@ -208,7 +207,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   vertical-align: middle;
 }
 
-#wymrtbzsgr .gt_empty_group_heading {
+#wsgmnnymun .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -223,19 +222,19 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   vertical-align: middle;
 }
 
-#wymrtbzsgr .gt_striped {
+#wsgmnnymun .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#wymrtbzsgr .gt_from_md > :first-child {
+#wsgmnnymun .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#wymrtbzsgr .gt_from_md > :last-child {
+#wsgmnnymun .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#wymrtbzsgr .gt_row {
+#wsgmnnymun .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -254,7 +253,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   overflow-x: hidden;
 }
 
-#wymrtbzsgr .gt_stub {
+#wsgmnnymun .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -266,7 +265,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   padding-left: 12px;
 }
 
-#wymrtbzsgr .gt_summary_row {
+#wsgmnnymun .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -276,7 +275,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   padding-right: 5px;
 }
 
-#wymrtbzsgr .gt_first_summary_row {
+#wsgmnnymun .gt_first_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -286,7 +285,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-top-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_grand_summary_row {
+#wsgmnnymun .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -296,7 +295,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   padding-right: 5px;
 }
 
-#wymrtbzsgr .gt_first_grand_summary_row {
+#wsgmnnymun .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -306,7 +305,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-top-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_table_body {
+#wsgmnnymun .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -315,7 +314,7 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-bottom-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_footnotes {
+#wsgmnnymun .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -329,13 +328,13 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-right-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_footnote {
+#wsgmnnymun .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding: 4px;
 }
 
-#wymrtbzsgr .gt_sourcenotes {
+#wsgmnnymun .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -349,46 +348,46 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
   border-right-color: #D3D3D3;
 }
 
-#wymrtbzsgr .gt_sourcenote {
+#wsgmnnymun .gt_sourcenote {
   font-size: 90%;
   padding: 4px;
 }
 
-#wymrtbzsgr .gt_left {
+#wsgmnnymun .gt_left {
   text-align: left;
 }
 
-#wymrtbzsgr .gt_center {
+#wsgmnnymun .gt_center {
   text-align: center;
 }
 
-#wymrtbzsgr .gt_right {
+#wsgmnnymun .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#wymrtbzsgr .gt_font_normal {
+#wsgmnnymun .gt_font_normal {
   font-weight: normal;
 }
 
-#wymrtbzsgr .gt_font_bold {
+#wsgmnnymun .gt_font_bold {
   font-weight: bold;
 }
 
-#wymrtbzsgr .gt_font_italic {
+#wsgmnnymun .gt_font_italic {
   font-style: italic;
 }
 
-#wymrtbzsgr .gt_super {
+#wsgmnnymun .gt_super {
   font-size: 65%;
 }
 
-#wymrtbzsgr .gt_footnote_marks {
+#wsgmnnymun .gt_footnote_marks {
   font-style: italic;
   font-size: 65%;
 }
 </style>
-<div id="wymrtbzsgr" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+<div id="wsgmnnymun" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
   
   <thead class="gt_col_headings">
     <tr>
@@ -501,16 +500,15 @@ The same way a ggplot2 graphic is built up from smaller pieces linked together; 
     </tr>
   </tfoot>
 </table></div>
-<p>It can do a lot more, and I fully encourrage you to check out the documentation and examples <a href="https://gt.rstudio.com/">here</a>.</p>
+<p>It can do a lot more, and I encourrage you to check out the documentation and examples <a href="https://gt.rstudio.com/">here</a>.</p>
 </div>
 <div id="where-it-all-starts-gt" class="section level2">
 <h2>Where it all starts: <code>gt()</code></h2>
 <p>All gt tables start by calling the <code>gt()</code> function on a data frame.
-This creates a <code>gt_tbl</code> object, which is essentially a fancy list.
-Classes in R are not quite the same as classes in, say, Python.
-The methods of making classes and structring inheritance are beyond this post<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.
-But here’s the class information for our <code>gt</code> object:</p>
-<pre class="r"><code>gt_table_1 &lt;- gt(pizzaplace)
+This creates a <code>gt_tbl</code> object, which is essentially a fancy list.</p>
+<p>Classes in R are not quite the same as classes in, say, Python.
+And while the methods of making classes and structring inheritance are beyond this post<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>, very simply put, making an object of a specific class in R can be done just by telling R “hey, this thing is a $CLASS now”.</p>
+<pre class="r"><code>gt_table_1 &lt;- gt(small_pizza, groupname_col = &quot;type&quot;)
 
 class(gt_table_1)</code></pre>
 <pre><code>## [1] &quot;gt_tbl&quot; &quot;list&quot;</code></pre>
@@ -519,10 +517,10 @@ This is good for us: We can use all the normal tools for dealing with lists to g
 <p>Let’s have a look what’s inside:</p>
 <pre class="r"><code>str(gt_table_1, max.level = 1)</code></pre>
 <pre><code>## List of 16
-##  $ _data        : tibble [49,574 × 7] (S3: tbl_df/tbl/data.frame)
-##  $ _boxhead     : tibble [7 × 6] (S3: tbl_df/tbl/data.frame)
-##  $ _stub_df     : tibble [49,574 × 3] (S3: tbl_df/tbl/data.frame)
-##  $ _row_groups  : chr(0) 
+##  $ _data        : tibble [14 × 4] (S3: tbl_df/tbl/data.frame)
+##  $ _boxhead     : tibble [4 × 6] (S3: tbl_df/tbl/data.frame)
+##  $ _stub_df     : tibble [14 × 3] (S3: tbl_df/tbl/data.frame)
+##  $ _row_groups  : chr [1:4] &quot;chicken&quot; &quot;classic&quot; &quot;supreme&quot; &quot;veggie&quot;
 ##  $ _stub_others : chr NA
 ##  $ _heading     :List of 2
 ##  $ _spanners    : tibble [0 × 4] (S3: tbl_df/tbl/data.frame)
@@ -536,13 +534,17 @@ This is good for us: We can use all the normal tools for dealing with lists to g
 ##  $ _transforms  : list()
 ##  $ _has_built   : logi FALSE
 ##  - attr(*, &quot;class&quot;)= chr [1:2] &quot;gt_tbl&quot; &quot;list&quot;</code></pre>
-<p>So we see that a single call to <code>gt()</code> has done quite a bit of work behind the scenes.</p>
-<p>The reason for constructing this object as a list lets the user add formatting etc in any order that they like.
-All the main functions from gt accept a <code>gt_tbl</code> object as their first argument and return a modified version of that <code>gt_tbl</code> object.
-This means that gt is highly pipeable<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>, and we can build up complex tables in small steps.</p>
-<p>Thsi is similar to the tidyverse/dplyr philosophy: all the functions accept and return the same class meaning that they can be used in any order and are pipeable.</p>
-<p>We see from the above that we’ve got 16 items that can be altered using gt functions.
-From a quick glance, some of these match different bits of the “Parts of a <em>gt</em> table” picture in the documentation:</p>
+<p>So we see that a single call to <code>gt()</code> has done quite a bit of work behind the scenes.
+It’s taken our data.frame and put it into a structure that has places to put all of the formatting settings of a table.
+There’s almost a one-to-one correspondence with most of the elements of a table in <a href="https://gt.rstudio.com/reference/figures/gt_parts_of_a_table.svg">this diagram</a>.</p>
+<p><code>gt()</code> effectively sets up a form that we can then fill in to tell R exactly how we wants our tables to look.
+Moreover, as each choice we make is stored separately in its own place in the list, we can change the settings in any order that we like and defer rendering to the end.</p>
+<p>All the main functions from gt accept a <code>gt_tbl</code> object as their first argument and return a modified version of that <code>gt_tbl</code> object:</p>
+<p><img src="/images/gt_tbl_functions.svg" /></p>
+<p>This means that gt is highly pipeable<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>, and we can build up complex tables in a series of small steps.</p>
+<p>This is similar to the tidyverse/dplyr philosophy: all the functions accept and return the same object meaning that they can be used in any order to build up a complex pipeline from small, simple actions.
+A design principle that benefits both the author and the user of the software.</p>
+<p>We saw earlier that we’ve got 16 items that can be altered using gt functions, including:</p>
 <ul>
 <li>boxhead</li>
 <li>stub</li>
@@ -551,66 +553,104 @@ From a quick glance, some of these match different bits of the “Parts of a <em
 <li>footnotes</li>
 <li>source_notes</li>
 </ul>
-<p>Interestingly, we also carry a copy of the underlying data in <code>_data</code>:</p>
-<pre class="r"><code>all(gt_table_1$`_data` == pizzaplace)</code></pre>
+<p>Importantly, we also carry a copy of the underlying data in <code>_data</code>:</p>
+<pre class="r"><code>all(gt_table_1$`_data` == small_pizza)</code></pre>
 <pre><code>## [1] TRUE</code></pre>
-<p>The <code>gt()</code> function itself</p>
-<p>(GO INTO THE DETAILS OF THE CONSTRUCTION, MAYBE MAKE A GRAPH OF THE INITIALISATION AND A DEEPISH DIVE INTO A SIMPLE ONE)
-(DELETE THIS CODE LISTING AFTER)</p>
-<pre class="r"><code>function (data, rowname_col = &quot;rowname&quot;, groupname_col = dplyr::group_vars(data), 
-    rownames_to_stub = FALSE, auto_align = TRUE, id = NULL, row_group.sep = getOption(&quot;gt.row_group.sep&quot;, 
-        &quot; - &quot;)) 
-{
-    validate_table_id(id)
-    if (rownames_to_stub) {
-        rowname_col &lt;- &quot;__GT_ROWNAME_PRIVATE__&quot;
-    }
-    if (length(groupname_col) == 0) {
-        groupname_col &lt;- NULL
-    }
-    if (!is.null(rowname_col) &amp;&amp; !is.null(groupname_col) &amp;&amp; any(rowname_col %in% 
-        groupname_col)) {
-        stop(&quot;The value \&quot;&quot;, rowname_col, &quot;\&quot; appears in both `rowname_col` and &quot;, 
-            &quot;`groupname_col`. These arguments must not have any values in common.&quot;, 
-            call. = FALSE)
-    }
-    data &lt;- list() %&gt;% dt_data_init(data_tbl = data, rownames_to_column = if (rownames_to_stub) 
-        rowname_col
-    else NA_character_) %&gt;% dt_boxhead_init() %&gt;% dt_stub_df_init(rowname_col = rowname_col, 
-        groupname_col = groupname_col, row_group.sep = row_group.sep) %&gt;% 
-        dt_row_groups_init() %&gt;% dt_stub_others_init() %&gt;% dt_heading_init() %&gt;% 
-        dt_spanners_init() %&gt;% dt_stubhead_init() %&gt;% dt_footnotes_init() %&gt;% 
-        dt_source_notes_init() %&gt;% dt_formats_init() %&gt;% dt_styles_init() %&gt;% 
-        dt_summary_init() %&gt;% dt_options_init() %&gt;% dt_transforms_init() %&gt;% 
-        dt_has_built_init()
-    if (!is.null(id)) {
-        data &lt;- data %&gt;% dt_options_set_value(option = &quot;table_id&quot;, 
-            value = id)
-    }
-    class(data) &lt;- c(&quot;gt_tbl&quot;, class(data))
-    if (isTRUE(auto_align)) {
-        data &lt;- data %&gt;% cols_align(align = &quot;auto&quot;)
-    }
-    data
-}</code></pre>
-<p>(LOOK AT SOME OF THE SIMPLE ELEMENTS OF THE gt_tbl LIST)
-(MAKE A NEW gt_table WHICH HAS THE GROUP ROWS SET)
-(COMPARE THE TWO)
-(ADD MORE FEATURES OF THE TABLE AND COMPARE THE CHANGES, WHERE POSSIBLE LOOK AT THE ACTUAL SOURCE CODE USED IN THE FUNCTIONS)
-(TALK ABOUT THE PRINT GENERIC)</p>
-<p>(END WITH A CONCLUSION/SUMMARY OF THE MAIN TECHNIQUES
-((MAKING AN OBJECT)
-(SETTING EVERYTHING UP READY)
-(MAKING SIMPLE FUNCTIONS THAT ACCEPT THE OBJECT DO ONE THING AND SEND IT ON ITS WAY)
-(BUILDING OFF AN EXISTING OBJECT)
-()))</p>
+<p>This means that we haven’t lost the original data when we converted to a <code>gt_tbl</code> and so we can also <strong>compute</strong> things from the data itself.
+Totals and summaries, for example.</p>
+<p>The <code>gt()</code> <a href="https://github.com/rstudio/gt/blob/master/R/gt.R#L82">function itself</a> does a few main things, it:</p>
+<ul>
+<li>validates or corrects any arguments passed into <code>gt()</code>.</li>
+<li>creates a list called <code>data</code> and then pipes this list through several initialisation functions, one for each of the elements of the <code>gt_tbl</code> list.
+For example, there’s a <code>dt_data_init</code> function, and a <code>dt_source_notes_init</code> function</li>
+<li>Sets the class of the list in the R way: <code>class(data) &lt;- c("gt_tbl", class(data))</code>.
+This is the “hey R, this is now a gt_tbl object, thanks” part.</li>
+<li>Returns the <code>gt_tbl</code> object.</li>
+</ul>
+</div>
+<div id="initialisation" class="section level2">
+<h2>Initialisation</h2>
+<p>The design principle here is one of a abstraction.
+The <code>gt()</code> function is concerned with making a <code>gt_tbl</code> object, it’s not concerned with the actual details of getting it done, which it farms out to other functions.
+Designing this way creates more functions to keep track of, but makes each individual functions eaiser to work with (and test).</p>
+<p><img src="/images/gt_init.svg" /></p>
+<p>Each of these <code>*_init()</code> functions is responsible for setting up a part of the <code>gt_tbl</code> object.</p>
+<p>Most of them follow similar principles, so let’s just have a look at one: <a href="https://github.com/rstudio/gt/blob/master/R/dt_footnotes.R"><code>dt_footnotes_init</code></a>.
+In the linked source file, we have four functions:</p>
+<ul>
+<li><code>dt_footnotes_get()</code></li>
+<li><code>dt_footnotes_set()</code></li>
+<li><code>dt_footnotes_init()</code></li>
+<li><code>dt_footnotes_add()</code></li>
+</ul>
+<p>The first two each make ways to get and set the footnotes and are specialised versions of generic getters and setters.
+This is another example of the principle of abstraction: There are generic getters and setters that take two arguments; what to get and where to get it from.
+But when we know that we are dealing with footnotes, we can make a specific footnote getter that effectively already fills in the “where to get it from” bit and so only needs one argument.</p>
+<p>The third function is the <code>dt_footnotes_init()</code> function used in <code>gt()</code>.
+This function sets up a data structure to hold footnote information and then puts it where it needs to be.
+This data structure is a tibble with seven columns wich places to put all the location and content information relating to footnotes.</p>
+<p>By the end of all the initialisation steps, we end up with a nested data structure that has places for all our formatting choices to be recorded.
+The next step is to examine what happens to this data structure when we specify the formatting we want.</p>
+</div>
+<div id="adding-a-footnote" class="section level2">
+<h2>Adding a footnote</h2>
+<p>So far, the <code>_footnotes</code> part of our table has been constructed, but is yet to be populated:</p>
+<pre class="r"><code>glimpse(gt_table_1$`_footnotes`)</code></pre>
+<pre><code>## Rows: 0
+## Columns: 7
+## $ locname   &lt;chr&gt; 
+## $ grpname   &lt;chr&gt; 
+## $ colname   &lt;chr&gt; 
+## $ locnum    &lt;dbl&gt; 
+## $ rownum    &lt;int&gt; 
+## $ colnum    &lt;int&gt; 
+## $ footnotes &lt;chr&gt;</code></pre>
+<p>When we add some footnote information this part of the <code>gt_tbl</code> object is updated:</p>
+<pre class="r"><code>gt_table_2 &lt;- gt_table_1 %&gt;%
+  tab_footnote(footnote = &quot;Includes Hawaiian pizzas&quot;, location = cells_row_groups(&quot;classic&quot;))
+
+glimpse(gt_table_2$`_footnotes`)</code></pre>
+<pre><code>## Rows: 1
+## Columns: 7
+## $ locname   &lt;chr&gt; &quot;row_groups&quot;
+## $ grpname   &lt;chr&gt; &quot;classic&quot;
+## $ colname   &lt;chr&gt; NA
+## $ locnum    &lt;dbl&gt; 5
+## $ rownum    &lt;int&gt; NA
+## $ colnum    &lt;int&gt; NA
+## $ footnotes &lt;chr&gt; &quot;Includes Hawaiian pizzas&quot;</code></pre>
+<p>We’ve added a footnote using the <a href="https://github.com/rstudio/gt/blob/6058358fe2f56901f2ef175fb74fa655e0b9793b/R/tab_create_modify.R#L514"><code>tab_footnote()</code></a> function.
+This function validates our input and uses the <code>set_footnote()</code> function from earlier.</p>
+<p>This is yet another step on the ladder of abstraction:</p>
+<ul>
+<li>We started with generic setters and getters to change thigns about our <code>gt_tbl</code> data structure</li>
+<li>The we found specific versions of getters and setters just for footnotes which removed the need to know <em>where</em> footnotes are stored.</li>
+<li>The we found the <code>tab_footnote()</code> function which removed the need to know how to <code>set_footnote()</code> and so only requires from us information about what should go into the footnote and where to put it.</li>
+</ul>
+<p>At each step the user of the function has to know less about the implementation details and so the interface becomes more and more declarative.</p>
+</div>
+<div id="lessons-learned" class="section level2">
+<h2>Lessons Learned</h2>
+<p>I’ve only lightly scratched the surface of {gt} so far.
+There’s a lot more to the intricacies of building and formatting the table, and we haven’t even touched upon rendering the table as html.
+Nevertheless, we’ve seen some very useful concepts:</p>
+<ul>
+<li>Setting up a data structure that can encapsulate all that we need to have for the task at hand.</li>
+<li>Making that data structure a class of its own.</li>
+<li>Writing functions that modify that data structure.</li>
+<li>designing pipeable functions to make a clear interface.
+This is done by having all the user-facing functions accept objects of the right class and return (modified versions of) the same class.</li>
+<li>Structuring the code as a series of abstractions, each step hiding some lower implementation noise that isn’t relevant to the current level.
+This is a powerful technique because it allows the designer to swap out lower level implementations without having to re-code higher level interfaces.</li>
+</ul>
+<p>I’m going to be more mindful of these techniques in my own packages and I’m hoping that this will improve the ease of maintaining my code.</p>
 </div>
 <div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>more experienced, more knowledgable etc<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
-<li id="fn2"><p>I’m using version 0.2.0.5<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
-<li id="fn3"><p><a href="https://github.com/rich-iannone">github</a>, <a href="https://twitter.com/riannone">twitter</a><a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn1"><p>I’m using version 0.2.1<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://github.com/rich-iannone">github</a>, <a href="https://twitter.com/riannone">twitter</a><a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>It’s very similar to the <a href="https://en.wikipedia.org/wiki/Unix_philosophy">Unix Philosophy</a><a href="#fnref3" class="footnote-back">↩︎</a></p></li>
 <li id="fn4"><p>I’d recommend Hadley Wickham’s <a href="https://adv-r.hadley.nz/oo.html">Advanced R</a> for more information<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
 <li id="fn5"><p>using the magritter pipes common in the tidyverse: <code>%&gt;%</code><a href="#fnref5" class="footnote-back">↩︎</a></p></li>
 </ol>

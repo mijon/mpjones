@@ -1,14 +1,13 @@
 ---
 title: gt teardown
 author: Michael
-date: '2020-06-14'
-slug: gt-teardown
+date: '2020-07-26'
 categories:
   - r
 tags:
   - r
   - teardown
-draft: true
+slug: gt-teardown
 ---
 
 ```{r setup, include = FALSE}
@@ -23,58 +22,59 @@ I love open source software.
 I love the intentions behind it, I love the range of tools available and I love the community.
 But for me, the best thing about open source is spotting something impressive and being able to find out how it was done.
 
-Reading the source written by a better^[more experienced, more knowledgable etc] programmer to learn from is such a powerful tool to improve your own code.
-I'm an okay programmer, I get by, but I want to be better. 
+Reading someone else's source code lets you learn directly from them. 
+You get to see how they tackle a problem and can incorporate their techniques into your own code.
+I'm an okay programmer, I get by, but I want to be better, and reading other people's code is a good way to do that. 
+
+
 In this post, I'm going to have a close look at some R code from the [gt](https://gt.rstudio.com/) package^[I'm using version `r packageVersion("gt")`].
 This is one of the many R pacakges for generating publication-quality html tables and is written by Richard Iannone^[[github](https://github.com/rich-iannone), [twitter](https://twitter.com/riannone)].
-Iannone is behind some great R packages, and he writes some of the best documentation for his packages that I have ever seen. 
+Iannone is for force behind some great R packages, and he writes some of the best documentation that I have ever seen. 
 Seriously, it's better than software I pay for. 
 
 ## gt
 
-Very quickly, gt makes html tables. 
-It stands for 'grammar of tables' and borrows an idea familiar to most R programmers of a grammar to do something: ggplot2 is a grammar of graphics.
+gt makes html tables. 
+It stands for 'grammar of tables' and borrows ideas familiar to many R programmers of structuring an interface through the principles of a grammar.
+It's exactly the concept underlying [Hadley Wickham's](https://hadley.github.io/) graphing package, ggplot2.
 
-This method of design leads to packages which containing many small functions that are composable into a larger whole.
-The same way a ggplot2 graphic is built up from smaller pieces linked together; or more loosely similar to how our natural language builds complex sentences from simple building blocks following a set of rules.
+This structure to the design leads to packages containing small functions that do one thing, but can be composed into longer chains to achieve much more complext results^[It's very similar to the [Unix Philosophy](https://en.wikipedia.org/wiki/Unix_philosophy)].
+It's the same way that a ggplot2 graphic is built up from smaller pieces linked together; or more loosely it's similar to how our natural languages build complex sentences from simple building blocks following a set of rules.
 
 gt lets us go from this:
 
 ```{r echo=FALSE}
-pizzaplace %>%
+small_pizza <- pizzaplace %>%
   select(-id) %>%
   group_by(type, size) %>%
-  summarise(n_sold = n(), price = sum(price))
+  summarise(n_sold = n(), price = sum(price), .groups = "keep")
+
+small_pizza
 ```
 
 to this:
 
 ```{r, echo=FALSE}
-pizzaplace %>%
-  select(-id) %>%
-  group_by(type, size) %>%
-  summarise(n_sold = n(), price = sum(price)) %>%
-  ungroup() %>% 
+small_pizza %>%
   gt(groupname_col = "type") %>%
-  # gt() %>% 
   fmt_currency(columns = "price") %>% 
   fmt_number(columns = "n_sold", sep_mark = ",", decimals = 0) %>% 
   tab_source_note("Data taken from the pizzaplace dataset of {gt}") %>% 
   tab_footnote(footnote = "Includes Hawaiian pizzas", location = cells_row_groups("classic"))
 ```
 
-It can do a lot more, and I fully encourrage you to check out the documentation and examples [here](https://gt.rstudio.com/).
+It can do a lot more, and I encourrage you to check out the documentation and examples [here](https://gt.rstudio.com/).
 
 ## Where it all starts: `gt()`
 
 All gt tables start by calling the `gt()` function on a data frame.
 This creates a `gt_tbl` object, which is essentially a fancy list.
+
 Classes in R are not quite the same as classes in, say, Python.
-The methods of making classes and structring inheritance are beyond this post^[I'd recommend Hadley Wickham's [Advanced R](https://adv-r.hadley.nz/oo.html) for more information].
-But here's the class information for our `gt` object:
+And while the methods of making classes and structring inheritance are beyond this post^[I'd recommend Hadley Wickham's [Advanced R](https://adv-r.hadley.nz/oo.html) for more information], very simply put, making an object of a specific class in R can be done just by telling R "hey, this thing is a $CLASS now".
 
 ```{r}
-gt_table_1 <- gt(pizzaplace)
+gt_table_1 <- gt(small_pizza, groupname_col = "type")
 
 class(gt_table_1)
 ```
@@ -89,15 +89,22 @@ str(gt_table_1, max.level = 1)
 ```
 
 So we see that a single call to `gt()` has done quite a bit of work behind the scenes.
+It's taken our data.frame and put it into a structure that has places to put all of the formatting settings of a table.
+There's almost a one-to-one correspondence with most of the elements of a table in [this diagram](https://gt.rstudio.com/reference/figures/gt_parts_of_a_table.svg).
 
-The reason for constructing this object as a list lets the user add formatting etc in any order that they like.
-All the main functions from gt accept a `gt_tbl` object as their first argument and return a modified version of that `gt_tbl` object.
-This means that gt is highly pipeable^[using the magritter pipes common in the tidyverse: `%>%`], and we can build up complex tables in small steps.
+`gt()` effectively sets up a form that we can then fill in to tell R exactly how we wants our tables to look.
+Moreover, as each choice we make is stored separately in its own place in the list, we can change the settings in any order that we like and defer rendering to the end.
 
-Thsi is similar to the tidyverse/dplyr philosophy: all the functions accept and return the same class meaning that they can be used in any order and are pipeable.
+All the main functions from gt accept a `gt_tbl` object as their first argument and return a modified version of that `gt_tbl` object:
 
-We see from the above that we've got 16 items that can be altered using gt functions.
-From a quick glance, some of these match different bits of the "Parts of a *gt* table" picture in the documentation:
+![](/images/gt_tbl_functions.svg)
+
+This means that gt is highly pipeable^[using the magritter pipes common in the tidyverse: `%>%`], and we can build up complex tables in a series of small steps.
+
+This is similar to the tidyverse/dplyr philosophy: all the functions accept and return the same object meaning that they can be used in any order to build up a complex pipeline from small, simple actions. 
+A design principle that benefits both the author and the user of the software.
+
+We saw earlier that we've got 16 items that can be altered using gt functions, including:
 
 - boxhead
 - stub
@@ -106,65 +113,95 @@ From a quick glance, some of these match different bits of the "Parts of a *gt* 
 - footnotes
 - source_notes
 
-Interestingly, we also carry a copy of the underlying data in `_data`:
+Importantly, we also carry a copy of the underlying data in `_data`:
 
 ```{r}
-all(gt_table_1$`_data` == pizzaplace)
+all(gt_table_1$`_data` == small_pizza)
 ```
 
-The `gt()` function itself
+This means that we haven't lost the original data when we converted to a `gt_tbl` and so we can also **compute** things from the data itself. 
+Totals and summaries, for example.
 
-(GO INTO THE DETAILS OF THE CONSTRUCTION, MAYBE MAKE A GRAPH OF THE INITIALISATION AND A DEEPISH DIVE INTO A SIMPLE ONE)
-(DELETE THIS CODE LISTING AFTER)
+The `gt()` [function itself](https://github.com/rstudio/gt/blob/master/R/gt.R#L82) does a few main things, it:
 
-```{r eval=FALSE, include=TRUE}
-function (data, rowname_col = "rowname", groupname_col = dplyr::group_vars(data), 
-    rownames_to_stub = FALSE, auto_align = TRUE, id = NULL, row_group.sep = getOption("gt.row_group.sep", 
-        " - ")) 
-{
-    validate_table_id(id)
-    if (rownames_to_stub) {
-        rowname_col <- "__GT_ROWNAME_PRIVATE__"
-    }
-    if (length(groupname_col) == 0) {
-        groupname_col <- NULL
-    }
-    if (!is.null(rowname_col) && !is.null(groupname_col) && any(rowname_col %in% 
-        groupname_col)) {
-        stop("The value \"", rowname_col, "\" appears in both `rowname_col` and ", 
-            "`groupname_col`. These arguments must not have any values in common.", 
-            call. = FALSE)
-    }
-    data <- list() %>% dt_data_init(data_tbl = data, rownames_to_column = if (rownames_to_stub) 
-        rowname_col
-    else NA_character_) %>% dt_boxhead_init() %>% dt_stub_df_init(rowname_col = rowname_col, 
-        groupname_col = groupname_col, row_group.sep = row_group.sep) %>% 
-        dt_row_groups_init() %>% dt_stub_others_init() %>% dt_heading_init() %>% 
-        dt_spanners_init() %>% dt_stubhead_init() %>% dt_footnotes_init() %>% 
-        dt_source_notes_init() %>% dt_formats_init() %>% dt_styles_init() %>% 
-        dt_summary_init() %>% dt_options_init() %>% dt_transforms_init() %>% 
-        dt_has_built_init()
-    if (!is.null(id)) {
-        data <- data %>% dt_options_set_value(option = "table_id", 
-            value = id)
-    }
-    class(data) <- c("gt_tbl", class(data))
-    if (isTRUE(auto_align)) {
-        data <- data %>% cols_align(align = "auto")
-    }
-    data
-}
+- validates or corrects any arguments passed into `gt()`.
+- creates a list called `data` and then pipes this list through several initialisation functions, one for each of the elements of the `gt_tbl` list. 
+  For example, there's a `dt_data_init` function, and a `dt_source_notes_init` function
+- Sets the class of the list in the R way: `class(data) <- c("gt_tbl", class(data))`.
+  This is the "hey R, this is now a gt_tbl object, thanks" part.
+- Returns the `gt_tbl` object.
+
+## Initialisation
+
+The design principle here is one of a abstraction.
+The `gt()` function is concerned with making a `gt_tbl` object, it's not concerned with the actual details of getting it done, which it farms out to other functions. 
+Designing this way creates more functions to keep track of, but makes each individual functions eaiser to work with (and test).
+
+![](/images/gt_init.svg)
+
+Each of these `*_init()` functions is responsible for setting up a part of the `gt_tbl` object.
+
+Most of them follow similar principles, so let's just have a look at one: [`dt_footnotes_init`](https://github.com/rstudio/gt/blob/master/R/dt_footnotes.R).
+In the linked source file, we have four functions:
+
+- `dt_footnotes_get()`
+- `dt_footnotes_set()`
+- `dt_footnotes_init()`
+- `dt_footnotes_add()`
+
+The first two each make ways to get and set the footnotes and are specialised versions of generic getters and setters.
+This is another example of the principle of abstraction: There are generic getters and setters that take two arguments; what to get and where to get it from. 
+But when we know that we are dealing with footnotes, we can make a specific footnote getter that effectively already fills in the "where to get it from" bit and so only needs one argument.
+
+The third function is the `dt_footnotes_init()` function used in `gt()`.
+This function sets up a data structure to hold footnote information and then puts it where it needs to be.
+This data structure is a tibble with seven columns wich places to put all the location and content information relating to footnotes.
+
+By the end of all the initialisation steps, we end up with a nested data structure that has places for all our formatting choices to be recorded. 
+The next step is to examine what happens to this data structure when we specify the formatting we want.
+
+## Adding a footnote
+
+So far, the `_footnotes` part of our table has been constructed, but is yet to be populated:
+
+```{r}
+glimpse(gt_table_1$`_footnotes`)
 ```
 
-(LOOK AT SOME OF THE SIMPLE ELEMENTS OF THE gt_tbl LIST)
-(MAKE A NEW gt_table WHICH HAS THE GROUP ROWS SET)
-(COMPARE THE TWO)
-(ADD MORE FEATURES OF THE TABLE AND COMPARE THE CHANGES, WHERE POSSIBLE LOOK AT THE ACTUAL SOURCE CODE USED IN THE FUNCTIONS)
-(TALK ABOUT THE PRINT GENERIC)
+When we add some footnote information this part of the `gt_tbl` object is updated:
 
-(END WITH A CONCLUSION/SUMMARY OF THE MAIN TECHNIQUES 
-  ((MAKING AN OBJECT)
-   (SETTING EVERYTHING UP READY)
-   (MAKING SIMPLE FUNCTIONS THAT ACCEPT THE OBJECT DO ONE THING AND SEND IT ON ITS WAY)
-   (BUILDING OFF AN EXISTING OBJECT)
-   ()))
+```{r}
+gt_table_2 <- gt_table_1 %>%
+  tab_footnote(footnote = "Includes Hawaiian pizzas", location = cells_row_groups("classic"))
+
+glimpse(gt_table_2$`_footnotes`)
+
+```
+
+We've added a footnote using the [`tab_footnote()`](https://github.com/rstudio/gt/blob/6058358fe2f56901f2ef175fb74fa655e0b9793b/R/tab_create_modify.R#L514) function.
+This function validates our input and uses the `set_footnote()` function from earlier.
+
+This is yet another step on the ladder of abstraction:
+
+- We started with generic setters and getters to change thigns about our `gt_tbl` data structure
+- The we found specific versions of getters and setters just for footnotes which removed the need to know *where* footnotes are stored.
+- The we found the `tab_footnote()` function which removed the need to know how to `set_footnote()` and so only requires from us information about what should go into the footnote and where to put it.
+
+At each step the user of the function has to know less about the implementation details and so the interface becomes more and more declarative.
+
+
+## Lessons Learned
+
+I've only lightly scratched the surface of {gt} so far. 
+There's a lot more to the intricacies of building and formatting the table, and we haven't even touched upon rendering the table as html.
+Nevertheless, we've seen some very useful concepts:
+
+- Setting up a data structure that can encapsulate all that we need to have for the task at hand.
+- Making that data structure a class of its own.
+- Writing functions that modify that data structure.
+- designing pipeable functions to make a clear interface. 
+  This is done by having all the user-facing functions accept objects of the right class and return (modified versions of) the same class.
+- Structuring the code as a series of abstractions, each step hiding some lower implementation noise that isn't relevant to the current level.
+  This is a powerful technique because it allows the designer to swap out lower level implementations without having to re-code higher level interfaces.
+  
+I'm going to be more mindful of these techniques in my own packages and I'm hoping that this will improve the ease of maintaining my code.
