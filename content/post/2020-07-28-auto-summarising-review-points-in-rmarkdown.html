@@ -1,0 +1,471 @@
+---
+title: Auto-summarising review points in Rmarkdown
+author: Michael
+date: '2020-07-29'
+tags:
+  - r
+  - rmarkdown
+slug: auto-summarising-review-points-in-rmarkdown
+draft: yes
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<div id="the-overview" class="section level2">
+<h2>The Overview</h2>
+<p>Rmarkdown documents have an R process running when they are compiled.
+We can use that to compute <em>about</em> the document when we compile it and have R make content that we didn’t write out long hand.</p>
+</div>
+<div id="the-problem" class="section level2">
+<h2>The Problem</h2>
+<blockquote>
+<p><em>I wanted a way to clearly highlight recommendations and have them summarised at the end of my document in a table but I only wanted to write them once and I didn’t want to have to manually collect them.</em></p>
+</blockquote>
+<p>For about a year now, I’ve been using Rmarkdown documents at work whenever I write anything for internal distribution.
+We still use MS Word for our external reports (for now), but anything that I write that goes to someone else in the company is done in Rmarkdown.</p>
+<p>One of the many advantages here is that the document is <strong>computable</strong>.
+By this, I mean that I can take advantage of the fact that there’s an R process running in the background when I compile to do some fun (and useful) things.</p>
+<p>I review a lot of work carried out be other people.
+In an effort to provide both a clear record of my review process and to store recommendations for other people to follow, I like to produce a document outlining what I’ve looked at and what I think needs changing.
+This is almost always provided to the person who did the work in the first place as an html document.</p>
+<p>I wanted a way to clearly highlight recommendations and have them summarised at the end of my document in a table
+but I only wanted to write them once and I didn’t want to have to manually collect them.</p>
+<p>So my final requirements were:</p>
+<ul>
+<li>I can easily mark recommendations in the flow of the text with minimal additional effort</li>
+<li>The recommendations will be made obvious to the reader somehow without me doing anything extra at the time of writing</li>
+<li>The recommendations will be collected and displayed at the bottom of the document in a table</li>
+<li>The tabulation should be automatic: I should not have to gather up my recommendation points manually</li>
+</ul>
+<p>Word <em>might</em> be able to do this, but if it can, it’s probably hidden deep in a menu somewhere.
+With computable documents, you can write a few lines of code and make this functionality for yourself.</p>
+</div>
+<div id="my-solution" class="section level2">
+<h2>My Solution</h2>
+<p>I used the fact that Rmarkdown documents are compiled in their own session.
+That means that I can (ab)use global assignment to avoid having to pass extra arguments to any functions without worrying about any other objects of the same name.</p>
+<p>I first set up somewhere to hold all of my recommendations.
+I use a list, but it could also easily be a data frame.
+I set it up in the first code chunk of the Rmd, usually the <code>setup</code> chunk.
+As the list will hold points I want the reader to follow up on, I’m going to call the list <code>follow_ups</code>.
+For now it’s empty.</p>
+<pre class="r"><code>follow_ups &lt;- list()</code></pre>
+<p>I want to make my follow up points stand out when displayed in the main body of the text.
+For my purposes, I’m happy just to set the colour in html, so I made a little helper function for that (which will work on any text we give it):</p>
+<pre class="r"><code>text_col &lt;- function(text, colour) {
+  glue::glue(&#39;&lt;span style=&quot;color:{colour}&quot;&gt;{text}&lt;/span&gt;&#39;)
+}</code></pre>
+<p>This uses the <code>glue()</code> function from <a href="https://github.com/tidyverse/glue">{glue}</a>, but you could make something just the same with <code>paste()</code>.
+All this function does it make some html that styles the text.
+If you do this sort of thing often or you want a significantly different style, you could use custom CSS
+To do so, you’d probably just to put your follow up point in a span with a particular class and style it all in the CSS stylesheet.</p>
+<p>Now I’ve got a way to make the recommendation stand out, I’m going to need a way to add it to the list:</p>
+<pre class="r"><code>follow_up &lt;- function(text) {
+  follow_ups &lt;&lt;- append(text, follow_ups)
+  
+  text_col(text, &quot;red&quot;)
+}</code></pre>
+<p>This function uses the <code>&lt;&lt;-</code> assignment operator<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
+<code>&lt;&lt;-</code> is often thought of as a global assignment operator, but really it’s a little more subtle.
+The help pages explain it well:</p>
+<blockquote>
+<p>The operators &lt;&lt;- and -&gt;&gt; are normally only used in functions, and cause a search to be made through parent environments for an existing definition of the variable being assigned. If such a variable is found (and its binding is not locked) then its value is redefined, otherwise assignment takes place in the global environment.</p>
+</blockquote>
+<p>This assignment operator looks to assign to objects in parent environments up to the global environment, but if R can’t find a pre-existing object, it will make a new one in the global environment.</p>
+<p>By using <code>&lt;&lt;-</code> here, I don’t have to pass around a copy of the <code>follow_ups</code> list.
+The one in the global environment of the Rmd will get updated.</p>
+<p>Now I can write inline R code like: <code>`r follow_up("look into this")`</code> when I want to include a review point.
+This would appear in the document like: <span style="color:red">look into this</span>.</p>
+<p>I’m free to pepper these around my review document as much as a like, e.g. when I see something that I don’t follow: <span style="color:red">Explain this more to me</span>.
+Or perhaps when something needs changing: <span style="color:red">This needs to change because of a reason and it should be documented</span>.</p>
+<p>Then right at the end, I will put a new section of the document called something like “Points to follow up” and in it I will run the following function (which is usually defined in the <code>setup</code> chunk).</p>
+<pre class="r"><code>show_follow_ups &lt;- function() {
+  data.frame(points = rev(unlist(follow_ups))) %&gt;% 
+    gt::gt() %&gt;%
+    gt::cols_label(points = &quot;Points to follow up on&quot;)
+    # knitr::kable()
+}</code></pre>
+<p>This will produce a table with the follow up points all nicely listed like this.</p>
+<pre class="r"><code>show_follow_ups()</code></pre>
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#iehgbijnyd .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#iehgbijnyd .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#iehgbijnyd .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#iehgbijnyd .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#iehgbijnyd .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#iehgbijnyd .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#iehgbijnyd .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#iehgbijnyd .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#iehgbijnyd .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#iehgbijnyd .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#iehgbijnyd .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#iehgbijnyd .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#iehgbijnyd .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#iehgbijnyd .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#iehgbijnyd .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#iehgbijnyd .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#iehgbijnyd .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#iehgbijnyd .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#iehgbijnyd .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#iehgbijnyd .gt_left {
+  text-align: left;
+}
+
+#iehgbijnyd .gt_center {
+  text-align: center;
+}
+
+#iehgbijnyd .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#iehgbijnyd .gt_font_normal {
+  font-weight: normal;
+}
+
+#iehgbijnyd .gt_font_bold {
+  font-weight: bold;
+}
+
+#iehgbijnyd .gt_font_italic {
+  font-style: italic;
+}
+
+#iehgbijnyd .gt_super {
+  font-size: 65%;
+}
+
+#iehgbijnyd .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="iehgbijnyd" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">Points to follow up on</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_left">look into this</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">Explain this more to me</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_left">This needs to change because of a reason and it should be documented</td>
+    </tr>
+  </tbody>
+  
+  
+</table></div>
+</div>
+<div id="extensions" class="section level2">
+<h2>Extensions</h2>
+<p>I’ve shown above the bare minimum of what is needed to set this up.
+At work I have expanded the functions in the following ways:</p>
+<ul>
+<li>I’ve made <code>follow_up()</code> take two additional arguments, a <code>context</code> which only gets displayed by <code>show_follow_ups()</code>.
+This is for when I want to bring down some context into the recommendation table, but want to keep the recommendation itself succint in the main body.
+The second change in a <code>resolution</code> argument that allows me to record the action taken or the response to each review point.
+When the <code>resolution</code> is given, the original point is greyed out in the main body and the resolution text is displayed after it; in the table, the resolution text is shown in another column.</li>
+<li>I’ve made <code>follow_up()</code> tag each recommendation point in the main body with an id in the <code>&lt;span&gt;</code> which I link to from the table at the bottom of the document.
+That way, if the context is not enough, the reader can click the link to go back up to the point in the body.</li>
+</ul>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>Having a clear list of review points makes my review notes clearer and easier to follow making my colleagues’ lives easier.
+Having R do all the work for me makes my life easier.
+Everyone wins.</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>This is an example of why I prefer <code>&lt;-</code> over <code>=</code> for assignment — it makes a consistently themed syntax for assignment<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
