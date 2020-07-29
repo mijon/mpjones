@@ -6,7 +6,6 @@ tags:
   - r
   - rmarkdown
 slug: auto-summarising-review-points-in-rmarkdown
-draft: yes
 ---
 
 ```{r, echo = FALSE}
