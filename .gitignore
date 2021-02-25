@@ -2,4 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
-public
+/public
+"\\.knit\\.md$"
+"\\.utf8\\.md$"
+.DR_store
+Thumbs.db
