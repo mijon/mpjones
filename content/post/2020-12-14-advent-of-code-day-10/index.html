@@ -1,0 +1,106 @@
+---
+title: "Plot your data: Advent of Code - Day 10"
+author: Michael
+date: '2021-02-18'
+draft: true
+slug: advent-of-code-day-10
+categories:
+  - r
+tags:
+  - r
+  - advent-of-code
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>This was mostly written during December 2020, but never published.</p>
+<p><strong>Warning</strong>: minor spoilers to day 10 of advent of code 2020.</p>
+<p>I’m doing <a href="https://www.adventofcode.com">Advent of Code 2020</a> for the first year.
+I’m having a great time and the puzzles provide a good challenge at the end of the day.</p>
+<p>I particularly enjoyed <a href="https://adventofcode.com/2020/day/10">day 10</a> and I wanted to write a little about the puzzle.</p>
+</div>
+<div id="the-puzzle" class="section level2">
+<h2>The Puzzle</h2>
+<p>If you follow the link in the previous paragraph you can read the first part of the puzzle specification<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
+The second part is to take this big list of adapters and find all the possible ways of connecting them such that you get from 0 jolts up to your device’s rating.
+The only issue is that adapters can only be connected to another one if the second adapter is rated between the same joltage and +3 jolts from your current adapter.</p>
+<p>In the puzzle itself, you get a huge amount of adapters so you need a computer to enumerate the possibilities.
+I got a list of 108 different adapters.</p>
+</div>
+<div id="the-first-attempt" class="section level2">
+<h2>The First Attempt</h2>
+<p>Faced with this problem, I thought I’ve effectively got to do a tree-search of all the possible combinations.
+I wrote a simple recursive function and tested it against the example data provided in the puzzle.
+It gave the right answers so I set it running on the input data.
+It was taking a little while so I started doing something else.</p>
+<p>When I get back to my laptop, it’s still running and I realise that I’ve skimmed over the puzzle text too quickly and missed the very obvious hint:</p>
+<blockquote>
+<p>there must be more than a trillion valid ways to arrange them! Surely, there must be an efficient way to count the arrangements.</p>
+</blockquote>
+<p>There must be an efficient way to count the arrangements—but I wasn’t using it.</p>
+</div>
+<div id="plot-your-data" class="section level2">
+<h2>Plot your data</h2>
+<p>I only made a break-through in my understanding of how to tackle this problem when I plotted the data.</p>
+<p>The problem readily lends itself to graph-based techniques:
+An adapter rated for 4 jolts can only connect to adapters rated for 4, 5, 6, and 7 jolts.
+It cannot connect to an adapter rated for 8 jolts.
+So if each node on the graph is an adapter, the edges connect adapters that can come in sequence.</p>
+<pre class="r"><code>little_jolts &lt;- c(0, 1, 3, 4, 7, 9, 10)</code></pre>
+<p>For example, say we had a a bag with adapters with joltages 0, 1, 3, 4, 7, 9, and 10.
+We’d end up drawing a graph like:</p>
+<pre class="r"><code>little_jolts %&gt;%
+  make_graph() %&gt;%
+  plot_graph()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/basic_graph-1.png" width="672" /></p>
+<p>The 0 jolt adapter can connect to only the 1 jolt or the 3 jolt adapter (so there are connecting lines), but can’t connect to any others.</p>
+<p>Here’s a similar graph for the test input:</p>
+<pre class="r"><code>jolts &lt;- load_jolts(&quot;./10_test_2.txt&quot;)
+jolt_graph &lt;- make_graph(jolts)
+
+plot_graph(jolt_graph)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/sample_data_graph-1.png" width="672" /></p>
+<p>Much more complicated, but this provided by breakthrough.</p>
+<p>I needed to count all the possible ways of getting from 0 so 52—all the different routes through.
+The key insight here is that the graph isn’t that densely connected.</p>
+<p>In fact, there are notable separate sub-graphs where there’s a lot going on but these are separated by one or more single edges.
+Like stones on a necklace.</p>
+<p>For example, 0 to 4 has loads of possible routes, but there is only one way to get from 4 to 7.
+No matter how you get from 0 to 4, you will always only have one way to get to 7.</p>
+<p>The smaller islands of activity are independent.</p>
+<p>We can break the problem down into solving smaller sub graphs and then combining these together because we know there is only one way to get between successive sub graphs.</p>
+<p>So let’s look at some graphs that we may encounter and count the number of ways through them.</p>
+<pre class="r"><code># helper to make a graph from 1 to `max`, connecting nodes that are `diff`
+# apart.
+make_subgraph &lt;- function(max, diff = 3) {
+  nodes &lt;- tibble(name = 1:max)
+  edges &lt;- tibble(from = 1:max,
+                  to = map(from, ~.x + 1:diff)) %&gt;%
+    unnest(to) %&gt;%
+    filter(to &lt;= max)
+
+  tbl_graph(nodes = nodes, edges = edges)
+}</code></pre>
+<p>If we’re only dealing with 3, 4, or 5, sequential adapters, we get one of the following graphs:
+test</p>
+<pre class="r"><code>map(3:5, make_subgraph) %&gt;%
+  map(plot_graph) %&gt;%
+  accumulate(`+`)</code></pre>
+<pre><code>## [[1]]</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/three_plots-1.png" width="672" /></p>
+<pre><code>## 
+## [[2]]</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/three_plots-2.png" width="672" /></p>
+<pre><code>## 
+## [[3]]</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/three_plots-3.png" width="672" /></p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>or play through advent of code and you can read the whole thing.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
