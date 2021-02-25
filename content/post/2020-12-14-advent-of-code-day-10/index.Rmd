@@ -2,7 +2,6 @@
 title: "Plot your data: Advent of Code - Day 10"
 author: Michael
 date: '2021-02-18'
-draft: true
 slug: advent-of-code-day-10
 categories:
   - r
@@ -44,16 +43,16 @@ When I get back to my laptop, it's still running and I realise that I've skimmed
 
 There must be an efficient way to count the arrangements---but I wasn't using it.
 
-## Plot your data
+## The Breakthrough
 
-I only made a break-through in my understanding of how to tackle this problem when I plotted the data.
+I only made a breakthrough in my understanding of how to tackle this problem when I plotted the data.
 
 The problem readily lends itself to graph-based techniques:
 An adapter rated for 4 jolts can only connect to adapters rated for 4, 5, 6, and 7 jolts. 
 It cannot connect to an adapter rated for 8 jolts.
 So if each node on the graph is an adapter, the edges connect adapters that can come in sequence.
 
-```{r include=FALSE}
+```{r message=FALSE, warning=FALSE, include=TRUE}
 library(tidyverse)
 library(tidygraph)
 library(ggraph)
@@ -128,13 +127,12 @@ jolt_graph <- make_graph(jolts)
 plot_graph(jolt_graph)
 ```
 
-Much more complicated, but this provided by breakthrough.
+Much more complicated, but this provided my breakthrough.
 
 I needed to count all the possible ways of getting from 0 so 52---all the different routes through.
 The key insight here is that the graph isn't that densely connected. 
 
 In fact, there are notable separate sub-graphs where there's a lot going on but these are separated by one or more single edges.
-Like stones on a necklace.
 
 For example, 0 to 4 has loads of possible routes, but there is only one way to get from 4 to 7.
 No matter how you get from 0 to 4, you will always only have one way to get to 7.
@@ -160,12 +158,69 @@ make_subgraph <- function(max, diff = 3) {
 ```
 
 If we're only dealing with 3, 4, or 5, sequential adapters, we get one of the following graphs:
- test
 
 ```{r three_plots}
-map(3:5, make_subgraph) %>%
+g <- map(3:5, make_subgraph) %>%
   map(plot_graph) %>%
-  accumulate(`+`)
+  reduce(`+`)
+
+g
+```
+
+So the really, we just need to enumerate the possible ways of traversing these sub graphs, and then identify each in the big graph.
+
+This vastly reduces the problem, the solution of the problem isn't the topic of this post though.
+
+## Always Plot Your Data
+
+That's the topic of this post.
+
+You have, on your shoulders, the most powerful pattern recognition platform there is. 
+There is no substitute to just *looking* at your data.
+
+Plotting is the closest we can come to picking up data and looking at it from different angles.
+Until you draw out your data, is it really *your* data?
+
+## Afterword
+
+Just in case you were interested, here are all the routes through the graph of five nodes:
+
+```{r, all_routes, echo=FALSE}
+five_graph <- make_subgraph(5)
+
+routes <- all_simple_paths(five_graph, from = 1, to = 5)
+
+draw_route <- function(route) {
+  set.seed(123)
+  
+  route <- as.vector(route)
+  
+  route_df <- tibble(from = route,
+                     to = lead(from)) %>% 
+    filter(!is.na(to)) %>% 
+    mutate(taken = TRUE)
+  
+  graph <- five_graph %>%
+    activate(edges) %>%
+    left_join(route_df, by = c("from", "to")) %>%
+    mutate(taken = if_else(is.na(taken), FALSE, taken)) %>% 
+    activate(nodes) %>% 
+    mutate(visited = name %in% route)
+  
+  ggraph(graph, layout = "igraph", algorithm = "gem") +
+    geom_edge_link(aes(start_cap = label_rect(node1.name),
+                     end_cap = label_rect(node2.name),
+                     colour = taken),
+                   arrow = arrow(length = unit(0.2, "cm"), type = "closed")) +
+    geom_node_text(aes(label = name, colour = visited)) +
+    scale_edge_colour_manual(values = c(`TRUE` = "red", `FALSE` = "grey80")) +
+    scale_colour_manual(values = c(`TRUE` = "red", `FALSE` = "grey80")) +
+    theme_void() +
+    theme(legend.position = "none")
+}
+
+map(routes, draw_route) %>% 
+  reduce(`+`)
 ```
 
 
