@@ -2,8 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-/public
-"\\.knit\\.md$"
-"\\.utf8\\.md$"
-.DR_store
+/public/
+/resources/
+.DS_Store
 Thumbs.db
