@@ -1,0 +1,155 @@
+---
+title: R, Julia, multiple Dispatch
+author: Michael
+date: '2021-05-31'
+slug: r-julia-multiple-dispatch
+categories:
+  - r
+  - Julia
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="julia" class="section level1">
+<h1>Julia</h1>
+<p><a href="https://julialang.org/">Julia</a> is a fascinating, relatively new programming language.
+It is intended to be as simple to program in as Python, as fast as C, with the statistical abilities of R and the metaprogramming abilities of Lisp.
+It’s billed as a future major player in the scientific computer world, indeed it’s the “Ju” in Jupyter.</p>
+<p>One of Julia’s key features is <strong>multiple dispatch</strong>.
+This is a feature that arises out of functions being defined by both their name <em>and</em> the types of their arguments.
+Essentially, for a function, <code>my_func</code>, exactly what Julia will do depends on the arguments you pass in as well as the name of the function.
+This <code>my_func(1)</code> is a totally separate function from <code>my_func("hello, there")</code>.</p>
+<p>Julia is really interesting and I’d recommend checking the language out if you are interested.
+A rather detailed introduction to multiple dispatch is <a href="https://www.youtube.com/watch?v=kc9HwsxE1OY&amp;t=1699s">Stefan Karpinski’s talk from Juliacon</a>,
+but a more freidly place to get a feel for multiple dispatch is David Neuzerling’s wonderful post <a href="https://mdneuzerling.com/post/first-impressions-of-julia-from-an-r-user/">here</a>.
+I will be referring to this post later on, so I would recommend reading it before progressing here.</p>
+</div>
+<div id="rs-s3-object-system" class="section level1">
+<h1>R’s S3 object system</h1>
+<p>R has a functional object oriented paradigm called S3.
+S3 is R’s most basic object oriented paradigm and it supports <strong>single dispatch</strong>.
+This is the reason that we can call <code>summary</code> on a <code>data.frame</code> and get a certain type of response but we can also call <code>summary</code> on the result of a <code>lm()</code> call and get a totally different (and specialised) set of information.</p>
+<p>This works because <code>summary</code> is a <strong>generic</strong> function.
+Calling <code>summary</code> on an object of a particular class will cause R to look at what class the object is, and then look up a specific <strong>method</strong> of the generic that has been implemented for that class.</p>
+<p>So when you call <code>summary</code> on a <code>data.frame</code>, R regonises that it has been given a <code>data.frame</code> and so passes your <code>data.frame</code> object to <code>summary.data.frame()</code>.
+When you call <code>summary</code> on <code>lm</code> objects, R passes your model to <code>summary.lm()</code>.
+All this happens behind the scenes and you don’t have to think about it.</p>
+<p>S3 gives you quite a lot without asking much from you - it’s a very beginner-friendly way to start working with R’s object oriented frameworks, and Hadley Wickham’s <a href="https://adv-r.hadley.nz/s3.html">Advanced R</a> is a wonderful resource to learn more.</p>
+<p>I like S3: I use it at work when I want to make an easy and consistent interface to code I write that abstracts particular implementation details.
+Doing so makes my code easier to manage for me and easier for my colleagues to use.</p>
+<p>But there is a little snag that makes S3 not as powerful as Julia’s type system.
+S3 cannot (easily?) do multiple dispatch, that is, we cannot define a function whose behaviour depends on the class of two or more of its arguments.
+We can only match this behaviour to the first argument.</p>
+</div>
+<div id="rs-s4-object-system" class="section level1">
+<h1>R’s S4 object system</h1>
+<p>R has a few other object systems, but the one I want to talk about in this post is S4.</p>
+<p>I haven’t used S4 much, and so later on in this post when I write some S4 code, don’t read it as a recommendation:
+I’s more a “look what I did” rather than “this is how S4 should be done”.
+That said, S4 is on my list of things to learn in R and, again, Wickham’s Advanced R is a useful starting point.</p>
+<p>An interesting thing about S4 is that it supports <strong>multiple</strong> dispatch.</p>
+<p>In the rest of this post, I will implement something similar to Neuzerling’s Julia example.</p>
+</div>
+<div id="s4-animals" class="section level1">
+<h1>S4 Animals</h1>
+<p>Neuzerling’s example involved defining the way two animals can meet and interact.
+They implemented both cat and dog types and a number of ways that these objects can interact all by overloading their <code>interact</code> function.
+Again, if you haven’t read their post, do so now or the motivation for the rest of mine may not be totally clear.</p>
+<p>Our first step will be to define some classes.
+We will start by defining a general <code>Animal</code> class, from which the rest of our classes will inherit:</p>
+<pre class="r"><code>setClass(&quot;Animal&quot;,
+         slots = c(
+           name = &quot;character&quot;
+         ))</code></pre>
+<p>S4 objects have ‘slots’ to put attributes.
+We’re going to be fairly basic in our implementation, so I’ll just say that animals can have a name but not think about any other features.</p>
+<p>Next we want to make a <code>Cat</code> and a <code>Dog</code> class:</p>
+<pre class="r"><code>setClass(&quot;Cat&quot;, contains = &quot;Animal&quot;)
+setClass(&quot;Dog&quot;, contains = &quot;Animal&quot;)</code></pre>
+<p>The <code>contains</code> argument to <code>setClass</code> defines the inheritance of both <code>Cat</code> and <code>Dog</code>.
+This inheritance means that I don’t need to specify that <code>Cat</code>s and <code>Dog</code>s also have names, because they get this by virtue of being <code>Animal</code>s.
+Note that S4 allowed multiple inheritance too, but I’m not touching that right now.</p>
+<p>We’ll do one more thing now, which is to define an accessor function to get the <code>name</code> of an <code>Animal</code>.
+Note that we <em>could</em> access the name using the <code>@</code> operator (which functions similarly to the <code>$</code> operator in, e.g. a named R list), but I understand that the <code>@</code> operator should really be reserved for programmers and not users.
+So we implement a <code>name()</code> function like so:</p>
+<pre class="r"><code>setGeneric(&quot;name&quot;, function(x) standardGeneric(&quot;name&quot;))</code></pre>
+<pre><code>## [1] &quot;name&quot;</code></pre>
+<pre class="r"><code>setMethod(&quot;name&quot;, signature = &quot;Animal&quot;, function(x) {x@name})</code></pre>
+<p>We first set <code>name</code> up as a generic and then define a specific method that will be applicable to all objects of class <code>Animal</code>.
+Since <code>Cat</code>s and <code>Dog</code>s are a type of <code>Animal</code>, they get a <code>name</code> generic for free, just like the inherited having a name.</p>
+<p>We can make specific instances of the animals like so:</p>
+<pre class="r"><code>spot &lt;- new(&quot;Cat&quot;, name = &quot;Spot&quot;)
+tom &lt;- new(&quot;Cat&quot;, name = &quot;Tom&quot;)
+
+greg &lt;- new(&quot;Dog&quot;, name = &quot;Greg&quot;)
+alice &lt;- new(&quot;Dog&quot;, name = &quot;Alice&quot;)</code></pre>
+<p>And we can get their <code>name</code>s like so:</p>
+<pre class="r"><code>name(spot)</code></pre>
+<pre><code>## [1] &quot;Spot&quot;</code></pre>
+<p>So far, so mundane: There’s nothing here that we couldn’t have done in S3.
+Let’s define what happens when these <code>Animal</code>s meet.</p>
+<p>We first define the <strong>generic</strong> function <code>meet</code> which captures the general idea of objects (of any type) meeting.</p>
+<pre class="r"><code>setGeneric(&quot;meet&quot;, function(x, y) standardGeneric(&quot;meet&quot;))</code></pre>
+<pre><code>## [1] &quot;meet&quot;</code></pre>
+<p>Now, we have four different ways two <code>Animal</code> could meet:</p>
+<ul>
+<li>a <code>Cat</code> meets another <code>Cat</code></li>
+<li>a <code>Dog</code> meets another <code>Dog</code></li>
+<li>a <code>Cat</code> meets a <code>Dog</code></li>
+<li>a <code>Dog</code> meets a <code>Cat</code></li>
+</ul>
+<p>But we should probably define a fallback/default method for <code>meet</code> that will work with any two <code>Animal</code>s, just in case we implement a new animal later on, but forget to implement the specific interactions:</p>
+<pre class="r"><code>setMethod(&quot;meet&quot;,
+          signature = c(x = &quot;Animal&quot;, y = &quot;Animal&quot;),
+          definition = function(x, y) {paste(name(x), &quot;meets&quot;, name(y), sep = &quot; &quot;)})</code></pre>
+<p>Example:</p>
+<pre class="r"><code>meet(spot, greg)</code></pre>
+<pre><code>## [1] &quot;Spot meets Greg&quot;</code></pre>
+<p>This call to <code>setMethod</code> includes the <code>signature</code> argument.
+Here is where we define the classes of the arguments that will be passed in to the function defined by <code>definition</code>.
+Here we state that when two <code>Animal</code>s meet, we supply a bland statement.</p>
+<p>Next we must define the interactions we want to allow:</p>
+<pre class="r"><code>setMethod(&quot;meet&quot;,
+          signature = c(x = &quot;Cat&quot;, y = &quot;Cat&quot;),
+          definition = function(x, y) {paste(name(x), &quot;hisses at&quot;, name(y))})
+
+setMethod(&quot;meet&quot;,
+          signature = c(x = &quot;Dog&quot;, y = &quot;Dog&quot;),
+          definition = function(x, y) {paste(name(x), &quot;sniffs&quot;, name(y))})
+
+setMethod(&quot;meet&quot;,
+          signature = c(x = &quot;Cat&quot;, y = &quot;Dog&quot;),
+          definition = function(x, y) {paste(name(x), &quot;bats&quot;, name(y))})
+
+setMethod(&quot;meet&quot;,
+          signature = c(x = &quot;Dog&quot;, y = &quot;Cat&quot;),
+          definition = function(x, y) {paste(name(x), &quot;chases&quot;, name(y))})</code></pre>
+<ul>
+<li>Two <code>Cat</code>s meeting hiss at each other</li>
+<li>Two <code>Dog</code>s meeting will sniff</li>
+<li>A <code>Cat</code> meeting a <code>Dog</code> will bat it</li>
+<li>A <code>Dog</code> meeting a <code>Cat</code> will chase it</li>
+</ul>
+<p>Now if we run the same meeting as before, we get a different result, because R chooses the most specific method:</p>
+<pre class="r"><code>meet(spot, greg)</code></pre>
+<pre><code>## [1] &quot;Spot bats Greg&quot;</code></pre>
+<p>And, we also have the following interactions:</p>
+<pre class="r"><code>meet(spot, tom)</code></pre>
+<pre><code>## [1] &quot;Spot hisses at Tom&quot;</code></pre>
+<pre class="r"><code>meet(greg, alice)</code></pre>
+<pre><code>## [1] &quot;Greg sniffs Alice&quot;</code></pre>
+<pre class="r"><code>meet(alice, tom)</code></pre>
+<pre><code>## [1] &quot;Alice chases Tom&quot;</code></pre>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>I’m just dipping my feet into Julia, and I’m yet to move over completely from R.
+Nevertheless, I already see the ways that multiple dispatch can be used to make more intuitive interfaces for users.</p>
+<p>Likewise, I’m really new to S4 and I have much to learn about it, but it’s nice to know that powerful features like multiple dispatch are available if I need them.</p>
+<p>One word of warning would be that I don’t know the performance costs of multiple dispatch in S4.
+I understand that there is no cost to Julia’s multiple dispatch since it’s a feature of the language, but I haven’t investigated the costs in R.
+I would imagine there could be a cost, and that would have to be investigated before committing to the implementation, but you’ve got to consider the mental costs of your users to struggle against a confusing interface vs the computational cost to your CPU to struggle against a particular object system.
+Depending on what you’re doing this trade off may come easily down on one side or the other or be about equal.</p>
+</div>

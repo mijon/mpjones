@@ -1,0 +1,206 @@
+---
+title: R, Julia, multiple Dispatch
+author: Michael
+date: '2021-05-31'
+slug: r-julia-multiple-dispatch
+categories:
+  - r
+  - Julia
+tags: []
+---
+
+# Julia
+
+[Julia](https://julialang.org/) is a fascinating, relatively new programming language.
+It is intended to be as simple to program in as Python, as fast as C, with the statistical abilities of R and the metaprogramming abilities of Lisp.
+It's billed as a future major player in the scientific computer world, indeed it's the "Ju" in Jupyter.
+
+One of Julia's key features is **multiple dispatch**. 
+This is a feature that arises out of functions being defined by both their name *and* the types of their arguments.
+Essentially, for a function, `my_func`, exactly what Julia will do depends on the arguments you pass in as well as the name of the function.
+This `my_func(1)` is a totally separate function from `my_func("hello, there")`.
+
+Julia is really interesting and I'd recommend checking the language out if you are interested.
+A rather detailed introduction to multiple dispatch is [Stefan Karpinski's talk from Juliacon](https://www.youtube.com/watch?v=kc9HwsxE1OY&t=1699s),
+but a more freidly place to get a feel for multiple dispatch is David Neuzerling's wonderful post [here](https://mdneuzerling.com/post/first-impressions-of-julia-from-an-r-user/).
+I will be referring to this post later on, so I would recommend reading it before progressing here.
+
+
+# R's S3 object system
+
+R has a functional object oriented paradigm called S3.
+S3 is R's most basic object oriented paradigm and it supports **single dispatch**.
+This is the reason that we can call `summary` on a `data.frame` and get a certain type of response but we can also call `summary` on the result of a `lm()` call and get a totally different (and specialised) set of information.
+
+This works because `summary` is a **generic** function.
+Calling `summary` on an object of a particular class will cause R to look at what class the object is, and then look up a specific **method** of the generic that has been implemented for that class.
+
+So when you call `summary` on a `data.frame`, R regonises that it has been given a `data.frame` and so passes your `data.frame` object to `summary.data.frame()`. 
+When you call `summary` on `lm` objects, R passes your model to `summary.lm()`.
+All this happens behind the scenes and you don't have to think about it.
+
+S3 gives you quite a lot without asking much from you - it's a very beginner-friendly way to start working with R's object oriented frameworks, and Hadley Wickham's [Advanced R](https://adv-r.hadley.nz/s3.html) is a wonderful resource to learn more.
+
+I like S3: I use it at work when I want to make an easy and consistent interface to code I write that abstracts particular implementation details.
+Doing so makes my code easier to manage for me and easier for my colleagues to use.
+
+But there is a little snag that makes S3 not as powerful as Julia's type system.
+S3 cannot (easily?) do multiple dispatch, that is, we cannot define a function whose behaviour depends on the class of two or more of its arguments.
+We can only match this behaviour to the first argument.
+
+# R's S4 object system
+
+R has a few other object systems, but the one I want to talk about in this post is S4.
+
+I haven't used S4 much, and so later on in this post when I write some S4 code, don't read it as a recommendation:
+I's more a "look what I did" rather than "this is how S4 should be done".
+That said, S4 is on my list of things to learn in R and, again, Wickham's Advanced R is a useful starting point.
+
+An interesting thing about S4 is that it supports **multiple** dispatch.
+
+In the rest of this post, I will implement something similar to Neuzerling's Julia example.
+
+# S4 Animals 
+
+Neuzerling's example involved defining the way two animals can meet and interact.
+They implemented both cat and dog types and a number of ways that these objects can interact all by overloading their `interact` function.
+Again, if you haven't read their post, do so now or the motivation for the rest of mine may not be totally clear.
+
+Our first step will be to define some classes.
+We will start by defining a general `Animal` class, from which the rest of our classes will inherit:
+
+```{r}
+setClass("Animal",
+         slots = c(
+           name = "character"
+         ))
+```
+
+S4 objects have 'slots' to put attributes.
+We're going to be fairly basic in our implementation, so I'll just say that animals can have a name but not think about any other features.
+
+Next we want to make a `Cat` and a `Dog` class:
+
+```{r}
+setClass("Cat", contains = "Animal")
+setClass("Dog", contains = "Animal")
+```
+
+The `contains` argument to `setClass` defines the inheritance of both `Cat` and `Dog`.
+This inheritance means that I don't need to specify that `Cat`s and `Dog`s also have names, because they get this by virtue of being `Animal`s.
+Note that S4 allowed multiple inheritance too, but I'm not touching that right now.
+
+We'll do one more thing now, which is to define an accessor function to get the `name` of an `Animal`.
+Note that we *could* access the name using the `@` operator (which functions similarly to the `$` operator in, e.g. a named R list), but I understand that the `@` operator should really be reserved for programmers and not users.
+So we implement a `name()` function like so:
+
+```{r}
+setGeneric("name", function(x) standardGeneric("name"))
+setMethod("name", signature = "Animal", function(x) {x@name})
+```
+
+We first set `name` up as a generic and then define a specific method that will be applicable to all objects of class `Animal`.
+Since `Cat`s and `Dog`s are a type of `Animal`, they get a `name` generic for free, just like the inherited having a name.
+
+We can make specific instances of the animals like so:
+
+```{r}
+spot <- new("Cat", name = "Spot")
+tom <- new("Cat", name = "Tom")
+
+greg <- new("Dog", name = "Greg")
+alice <- new("Dog", name = "Alice")
+```
+
+And we can get their `name`s like so:
+
+```{r}
+name(spot)
+```
+
+So far, so mundane: There's nothing here that we couldn't have done in S3.
+Let's define what happens when these `Animal`s meet.
+
+We first define the **generic** function `meet` which captures the general idea of objects (of any type) meeting.
+
+```{r}
+setGeneric("meet", function(x, y) standardGeneric("meet"))
+```
+
+Now, we have four different ways two `Animal` could meet:
+
+- a `Cat` meets another `Cat`
+- a `Dog` meets another `Dog`
+- a `Cat` meets a `Dog`
+- a `Dog` meets a `Cat`
+
+But we should probably define a fallback/default method for `meet` that will work with any two `Animal`s, just in case we implement a new animal later on, but forget to implement the specific interactions:
+
+```{r}
+setMethod("meet",
+          signature = c(x = "Animal", y = "Animal"),
+          definition = function(x, y) {paste(name(x), "meets", name(y), sep = " ")})
+```
+
+Example:
+
+```{r}
+meet(spot, greg)
+```
+
+This call to `setMethod` includes the `signature` argument.
+Here is where we define the classes of the arguments that will be passed in to the function defined by `definition`.
+Here we state that when two `Animal`s meet, we supply a bland statement.
+
+Next we must define the interactions we want to allow:
+
+```{r}
+setMethod("meet",
+          signature = c(x = "Cat", y = "Cat"),
+          definition = function(x, y) {paste(name(x), "hisses at", name(y))})
+
+setMethod("meet",
+          signature = c(x = "Dog", y = "Dog"),
+          definition = function(x, y) {paste(name(x), "sniffs", name(y))})
+
+setMethod("meet",
+          signature = c(x = "Cat", y = "Dog"),
+          definition = function(x, y) {paste(name(x), "bats", name(y))})
+
+setMethod("meet",
+          signature = c(x = "Dog", y = "Cat"),
+          definition = function(x, y) {paste(name(x), "chases", name(y))})
+```
+
+- Two `Cat`s meeting hiss at each other
+- Two `Dog`s meeting will sniff
+- A `Cat` meeting a `Dog` will bat it
+- A `Dog` meeting a `Cat` will chase it
+
+Now if we run the same meeting as before, we get a different result, because R chooses the most specific method:
+
+```{r}
+meet(spot, greg)
+```
+
+And, we also have the following interactions:
+
+```{r}
+meet(spot, tom)
+meet(greg, alice)
+meet(alice, tom)
+```
+
+# Conclusion
+
+I'm just dipping my feet into Julia, and I'm yet to move over completely from R.
+Nevertheless, I already see the ways that multiple dispatch can be used to make more intuitive interfaces for users.
+
+Likewise, I'm really new to S4 and I have much to learn about it, but it's nice to know that powerful features like multiple dispatch are available if I need them.
+
+One word of warning would be that I don't know the performance costs of multiple dispatch in S4. 
+I understand that there is no cost to Julia's multiple dispatch since it's a feature of the language, but I haven't investigated the costs in R.
+I would imagine there could be a cost, and that would have to be investigated before committing to the implementation, but you've got to consider the mental costs of your users to struggle against a confusing interface vs the computational cost to your CPU to struggle against a particular object system.
+Depending on what you're doing this trade off may come easily down on one side or the other or be about equal.
+
+
