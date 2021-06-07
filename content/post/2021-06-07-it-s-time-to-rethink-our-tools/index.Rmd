@@ -1,0 +1,125 @@
+---
+title: It's time to rethink our tools
+author: Michael
+date: '2021-06-07'
+slug: it-s-time-to-rethink-our-tools
+categories:
+  - r
+  - actuarial
+tags: []
+---
+
+Last month I had the pleasure of presenting to my local actuarial association.
+Given entirely free reign over exactly what to talk about, I took advantage of having a captive audience and decided to use the opportunity to have a public, one hour rant about spreadsheets.
+
+## Slides
+
+The slides I wrote are here:
+
+```{r echo=FALSE}
+xaringanExtra::embed_xaringan(
+  url = "/slides/spreadsheets.html",
+  ratio = "16:9"
+)
+```
+
+## The Talk
+
+The actuarial profession is saturated with spreadsheets.
+I'm not sure there are many tools that evoke the idea of 'actuary' more than a spreadsheet^[with the exception, perhaps, of a slide rule and a book of mortality tables].
+
+Nevertheless, I think spreadsheets are a tool of an earlier era and one that actuaries would be better placed to dramatically reduce in importance for their work.
+The reasons are several but include simple competition: There's not much that an actuary does that can't be done by someone else, bar reserved roles.
+That is, there's nothing special about our calculation skills anymore and if we don't adapt to use the tools of other specialisations, we will find those specialisations coming for our traditional domain.
+
+### But what *are* they good for?
+
+Spreadsheets do have a place in our work though.
+
+They are great for rough work; they are, after all, effectively slightly smarter paper.
+
+They are also a good way to get a quick view of your data - I often find myself working in R, then piping a dataframe into `clipr::write_clip()` to then paste it into Excel to have a look.
+
+They are also good for toy models and simplifications to test assumptions or use as a learning tool.
+One of the first things I have new joiners do is set up a Chain Ladder model in Excel and play around with real data.
+
+And finally, I think spreadsheets are very much hear to stay as a data transfer medium between departments and clients/consultants.
+Even though we should be encouraging the move over the databases and APIs, most smaller companies will be sending actuaries spreadsheets for many years to come.
+
+### The tools you use are important
+
+We've all heard the saying that "when all you have is a hammer, everything looks like a nail", and I think the same is true for spreadsheets.
+As a profession, we can be so comfortable with spreadsheets that we will use them for everything from storing data to modeling to reporting.
+
+But not only can spreadsheets say what you *can* do (i.e. what is easy to do in a spreadsheet may not be what you should be doing), the tools we use dictate how we think about problems and relatedly what problems we think are possible.
+
+By expanding the set of tools we have available, we are able to attack a larger class of problems, and are, therefore, more likely to be able to answer the question that our client is *actually* asking, rather than the question we wished they had asked because we know a good way to solve that in Excel.
+
+### Looking to the Future
+
+The role of the actuary is getting more and more time pressured. 
+Gone are the days that we can justify a three year cycle for pensions calculations.
+We are more and more being asked for quarterly or monthly monitoring and so we need to be agile and responsive for our clients^[Why stop at monthly reporting, perhaps on-demand reporting is where we want to be headed - what if you could get actuarial projections whenever you wanted them, ones that were responsive to market changes... certainly something you can't do in spreadsheets alone].
+
+Solvency II is pushing up against what should be done in a spreadsheet, and certainly IFRS 17 should only be attempted in a spreadsheet in some sort of bizarre punishment scenario.
+It's clear that we need to move to something more powerful than spreadsheets to continue our work.
+
+### Jack of all trades, master of none
+
+Spreadsheets are *fine*, they are okay at many things, but the don't really shine at anything.
+They appear simple on the surface, but they are hiding a reactive computing environment that has a vast input surface, potential for hidden calculation that actively encourrages massive code reuse (every cell is a separate reactive program that cannot form any useful abstractions^[Yes, I know about the upcoming `let` and `lambda` functions, so Excel, welcome to what Lisp had in the '50s.]).
+
+Another thing that gets me is the total lack of data typing or classes. 
+A Date in Excel is just a way of formatting a number. 
+There's nothing particularly 'datey' about it, whereas, actual programming environments can build tools to handle dates slightly more gracefully (and won't randomly convert things to date format without asking you).
+
+### Muddled Models
+
+Something I wanted to explore in more depth in the talk but couldn't find the time is a conflation between model, implementation and instance.
+
+For me a "model" is a set of mathematical rules that describe a system.
+The model is the distributions you're going to use, or the linear formula or whatever.
+
+The "implementation" is the process of taking your mathematical model and rendering it into a useful tool.
+In a programming world, that's writing the program that will one day receive the data.
+
+Then each application of the implementation is a single "instance" of the model.
+But in Excel (unless you are careful/complicated), you cannot separate an instance from an implementation, because to run your model on new data you need to take a copy of that model and paste in the new data.
+But now you have two separate spreadsheets that do the same process and changes you make to one don't carry over to the other.
+
+In a programming world, you can change the library that your model calls and then push changes out to all your implementations.
+
+### There is another way
+
+It should be pretty clear now that I would favour relegating spreadsheets to the periphery of our work in favour of making models in code and storing data in databases.
+
+The programming languages that I'd recommend or actuaries are
+
+- R
+- Python
+- Julia
+
+probably in that order, though it really doesn't matter.
+The step from Excel to code is far wider than the step between programming languages^[and if your data is in a database then it really doesn't matter what language you use and there are no data-related issues to changing later on]. It really doesn't matter which language you pick as long as your pick one to get started with.
+
+The benefits are numerous:
+
+- You will be able to reuse code across projects and ultimately build out a suite of tools common across projects.
+  For example, many actuarial projects probably involve life tables, so rather than throwing together the life table maths in a a new spreadsheet each time, you pull that functionality into its own library that all your projects depend on. 
+  By not duplicating effort across many projects, you can spend more time making your central life table library more performant and feature-rich.
+- Proper data structures and abstractions leading to simpler implementations and clearer intentionality. Spreadsheets are a mess partly because you have to implement everything, when you can bundle functionality into functions, modules, libraries and packages you can be so much clearer in your implementations.
+- Well written code is just faster than spreadsheets and it offers a huge range of possibilities to leverage parallel and distributed computing if needed.
+- Using code opens up a world of possible better (and more fun) models.
+- When you write code, you can use version control systems like git. 
+  The "version control" tabs in spreadsheets don't work because they are manually filled in, impossible to ensure they have been updated and impossible to roll back.
+- With code workflows you get computable, automated documents ({knitr} is wonderful for reporting)
+- The graphing is so much better in R/Python/Julia/Javascript than in Excel.
+- Also you can use pipeline tools like {drake} in R, or Luigi and Airflow with Python (or good old-fashioned Make files).
+
+### Resources
+
+I inlcuded a range of resources in the talk that should be enough for any spreadsheet-tired actuary to start exploring the world of code-based workflows.
+
+## Colophon
+
+The slides were made with [xaringan](https://github.com/yihui/xaringan) using the [kakashi](https://github.com/malcolmbarrett/kakashi) theme from Malcolm Barrett.

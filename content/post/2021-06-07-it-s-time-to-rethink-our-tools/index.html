@@ -1,0 +1,121 @@
+---
+title: It's time to rethink our tools
+author: Michael
+date: '2021-06-07'
+slug: it-s-time-to-rethink-our-tools
+categories:
+  - r
+  - actuarial
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+<script src="{{< blogdown/postref >}}index_files/fitvids/fitvids.min.js"></script>
+
+
+<p>Last month I had the pleasure of presenting to my local actuarial association.
+Given entirely free reign over exactly what to talk about, I took advantage of having a captive audience and decided to use the opportunity to have a public, one hour rant about spreadsheets.</p>
+<div id="slides" class="section level2">
+<h2>Slides</h2>
+<p>The slides I wrote are here:</p>
+<div class="shareagain" style="min-width:300px;margin:1em auto;">
+<iframe src="/slides/spreadsheets.html" width="1600" height="900" style="border:2px solid currentColor;" loading="lazy" allowfullscreen></iframe>
+<script>fitvids('.shareagain', {players: 'iframe'});</script>
+</div>
+</div>
+<div id="the-talk" class="section level2">
+<h2>The Talk</h2>
+<p>The actuarial profession is saturated with spreadsheets.
+I’m not sure there are many tools that evoke the idea of ‘actuary’ more than a spreadsheet<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>Nevertheless, I think spreadsheets are a tool of an earlier era and one that actuaries would be better placed to dramatically reduce in importance for their work.
+The reasons are several but include simple competition: There’s not much that an actuary does that can’t be done by someone else, bar reserved roles.
+That is, there’s nothing special about our calculation skills anymore and if we don’t adapt to use the tools of other specialisations, we will find those specialisations coming for our traditional domain.</p>
+<div id="but-what-are-they-good-for" class="section level3">
+<h3>But what <em>are</em> they good for?</h3>
+<p>Spreadsheets do have a place in our work though.</p>
+<p>They are great for rough work; they are, after all, effectively slightly smarter paper.</p>
+<p>They are also a good way to get a quick view of your data - I often find myself working in R, then piping a dataframe into <code>clipr::write_clip()</code> to then paste it into Excel to have a look.</p>
+<p>They are also good for toy models and simplifications to test assumptions or use as a learning tool.
+One of the first things I have new joiners do is set up a Chain Ladder model in Excel and play around with real data.</p>
+<p>And finally, I think spreadsheets are very much hear to stay as a data transfer medium between departments and clients/consultants.
+Even though we should be encouraging the move over the databases and APIs, most smaller companies will be sending actuaries spreadsheets for many years to come.</p>
+</div>
+<div id="the-tools-you-use-are-important" class="section level3">
+<h3>The tools you use are important</h3>
+<p>We’ve all heard the saying that “when all you have is a hammer, everything looks like a nail”, and I think the same is true for spreadsheets.
+As a profession, we can be so comfortable with spreadsheets that we will use them for everything from storing data to modeling to reporting.</p>
+<p>But not only can spreadsheets say what you <em>can</em> do (i.e. what is easy to do in a spreadsheet may not be what you should be doing), the tools we use dictate how we think about problems and relatedly what problems we think are possible.</p>
+<p>By expanding the set of tools we have available, we are able to attack a larger class of problems, and are, therefore, more likely to be able to answer the question that our client is <em>actually</em> asking, rather than the question we wished they had asked because we know a good way to solve that in Excel.</p>
+</div>
+<div id="looking-to-the-future" class="section level3">
+<h3>Looking to the Future</h3>
+<p>The role of the actuary is getting more and more time pressured.
+Gone are the days that we can justify a three year cycle for pensions calculations.
+We are more and more being asked for quarterly or monthly monitoring and so we need to be agile and responsive for our clients<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
+<p>Solvency II is pushing up against what should be done in a spreadsheet, and certainly IFRS 17 should only be attempted in a spreadsheet in some sort of bizarre punishment scenario.
+It’s clear that we need to move to something more powerful than spreadsheets to continue our work.</p>
+</div>
+<div id="jack-of-all-trades-master-of-none" class="section level3">
+<h3>Jack of all trades, master of none</h3>
+<p>Spreadsheets are <em>fine</em>, they are okay at many things, but the don’t really shine at anything.
+They appear simple on the surface, but they are hiding a reactive computing environment that has a vast input surface, potential for hidden calculation that actively encourrages massive code reuse (every cell is a separate reactive program that cannot form any useful abstractions<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>).</p>
+<p>Another thing that gets me is the total lack of data typing or classes.
+A Date in Excel is just a way of formatting a number.
+There’s nothing particularly ‘datey’ about it, whereas, actual programming environments can build tools to handle dates slightly more gracefully (and won’t randomly convert things to date format without asking you).</p>
+</div>
+<div id="muddled-models" class="section level3">
+<h3>Muddled Models</h3>
+<p>Something I wanted to explore in more depth in the talk but couldn’t find the time is a conflation between model, implementation and instance.</p>
+<p>For me a “model” is a set of mathematical rules that describe a system.
+The model is the distributions you’re going to use, or the linear formula or whatever.</p>
+<p>The “implementation” is the process of taking your mathematical model and rendering it into a useful tool.
+In a programming world, that’s writing the program that will one day receive the data.</p>
+<p>Then each application of the implementation is a single “instance” of the model.
+But in Excel (unless you are careful/complicated), you cannot separate an instance from an implementation, because to run your model on new data you need to take a copy of that model and paste in the new data.
+But now you have two separate spreadsheets that do the same process and changes you make to one don’t carry over to the other.</p>
+<p>In a programming world, you can change the library that your model calls and then push changes out to all your implementations.</p>
+</div>
+<div id="there-is-another-way" class="section level3">
+<h3>There is another way</h3>
+<p>It should be pretty clear now that I would favour relegating spreadsheets to the periphery of our work in favour of making models in code and storing data in databases.</p>
+<p>The programming languages that I’d recommend or actuaries are</p>
+<ul>
+<li>R</li>
+<li>Python</li>
+<li>Julia</li>
+</ul>
+<p>probably in that order, though it really doesn’t matter.
+The step from Excel to code is far wider than the step between programming languages<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>. It really doesn’t matter which language you pick as long as your pick one to get started with.</p>
+<p>The benefits are numerous:</p>
+<ul>
+<li>You will be able to reuse code across projects and ultimately build out a suite of tools common across projects.
+For example, many actuarial projects probably involve life tables, so rather than throwing together the life table maths in a a new spreadsheet each time, you pull that functionality into its own library that all your projects depend on.
+By not duplicating effort across many projects, you can spend more time making your central life table library more performant and feature-rich.</li>
+<li>Proper data structures and abstractions leading to simpler implementations and clearer intentionality. Spreadsheets are a mess partly because you have to implement everything, when you can bundle functionality into functions, modules, libraries and packages you can be so much clearer in your implementations.</li>
+<li>Well written code is just faster than spreadsheets and it offers a huge range of possibilities to leverage parallel and distributed computing if needed.</li>
+<li>Using code opens up a world of possible better (and more fun) models.</li>
+<li>When you write code, you can use version control systems like git.
+The “version control” tabs in spreadsheets don’t work because they are manually filled in, impossible to ensure they have been updated and impossible to roll back.</li>
+<li>With code workflows you get computable, automated documents ({knitr} is wonderful for reporting)</li>
+<li>The graphing is so much better in R/Python/Julia/Javascript than in Excel.</li>
+<li>Also you can use pipeline tools like {drake} in R, or Luigi and Airflow with Python (or good old-fashioned Make files).</li>
+</ul>
+</div>
+<div id="resources" class="section level3">
+<h3>Resources</h3>
+<p>I inlcuded a range of resources in the talk that should be enough for any spreadsheet-tired actuary to start exploring the world of code-based workflows.</p>
+</div>
+</div>
+<div id="colophon" class="section level2">
+<h2>Colophon</h2>
+<p>The slides were made with <a href="https://github.com/yihui/xaringan">xaringan</a> using the <a href="https://github.com/malcolmbarrett/kakashi">kakashi</a> theme from Malcolm Barrett.</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>with the exception, perhaps, of a slide rule and a book of mortality tables<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Why stop at monthly reporting, perhaps on-demand reporting is where we want to be headed - what if you could get actuarial projections whenever you wanted them, ones that were responsive to market changes… certainly something you can’t do in spreadsheets alone<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Yes, I know about the upcoming <code>let</code> and <code>lambda</code> functions, so Excel, welcome to what Lisp had in the ’50s.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>and if your data is in a database then it really doesn’t matter what language you use and there are no data-related issues to changing later on<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
