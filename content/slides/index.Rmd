@@ -7,3 +7,5 @@ Here is a list of the slides for talks I've published.
 Generally I will try to write a blog post for each as well.
 
 - Spreadsheets: [slides](/slides/spreadsheets.html), [post](/2021/06/07/it-s-time-to-rethink-our-tools/)
+- Reproducibility using R: [slides](/slides/reproducibility_presentation.html)
+- Basics of data manipulation using the {tidyverse}: [slides](/slides/data_manipulation.html)
