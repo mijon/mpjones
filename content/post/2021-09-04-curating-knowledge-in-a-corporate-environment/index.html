@@ -1,0 +1,110 @@
+---
+title: Curating Knowledge in a Corporate Environment
+author: Michael
+date: '2021-09-04'
+slug: []
+categories: []
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Recently I’ve fallen down the rabbit hole of <a href="https://en.wikipedia.org/wiki/Personal_knowledge_management">Personal Knowledge Management</a> or “PKM” for short.
+This is a rather broad term that covers a number of different sub-disciplines from effective note taking while reading, to using phone apps to capture any information you stumble across to acting like a librarian or museum curator towards your own personal understanding.</p>
+<p>My entry into this world was through the book <em>How to Take Smart Notes</em> by Sönke Ahrens.
+Beyond being an effective how-to, the book tells the story of <a href="https://en.wikipedia.org/wiki/Niklas_Luhmann">Niklas Luhmann</a>, a 20th century sociologist whose “Zettelkasten” note taking system enabled him to be incredibly prolific in his paper writing.
+I’d strongly recommend the book for anyone looking to maximise the impact of their non-fiction reading in a way that integrates a book into the wider context of all they have read.</p>
+<p>Some of the key ideas at the heard of the PKM movement are:</p>
+<ul>
+<li>Human brains are great at thinking but bad at holding information. Getting facts out into a trusted, external system frees up mental resources to be used to make connections between ideas and to develop new ones.</li>
+<li>When constructing this system to store our knowledge it must be easy to add new information, but perhaps more importantly it must be easy to <em>connect</em> new information with existing information as it’s from linking disparate concepts that original insights emerge.</li>
+<li>The system should naturally bring related ideas to the surface as we explore a particular thread. The most effective systems to this in a way that surprises the user, given them useful information that they didn’t explicitly search for.</li>
+</ul>
+<p>I’ve been using <a href="https://obsidian.md/">Obsidian</a> to hold my notes rather than using paper like Luhmann, and I’ve been learning most of how to use it from <a href="https://www.youtube.com/channel/UCfhSB16X9MXhzSFe_H7XbHg">Bryan Jenks</a>.
+Over time as I’ve been adding to my notes, the connections between them have grown and I’ve started to see these emergent ideas that the advocates of PKM systems extol.</p>
+<p>But the benefits I’ve seen at a personal level have stood in stark contrast to the way the corporate world approaches knowledge.</p>
+<div id="knowledge-is-power" class="section level2">
+<h2>Knowledge is Power</h2>
+<p>An effective team is one that’s pulling in the same direction.
+The trouble is that in complex work, the right direction is often unclear and requires a large amount of knowledge and understanding to figure out.
+In most knowledge-work professions, the understanding needed is built up over time from exposure to more experiences colleagues and through making mistakes.
+And even for experienced practitioners, complex decisions require the consideration of many factors; usually many more than spring to mind initially.</p>
+<p>A team that can manage their knowledge, therefore, will always be more dynamic than a team that cannot. A team that empowers their newest members to learn and develop quickly will reap the compound benefits above what a less effective team can. And a team that has a knowledge base wide and deep enough to serve even the requirements of its most experienced members working on the most challenging problems will produce far better output than a team that has institutional amnesia.</p>
+</div>
+<div id="the-problem" class="section level2">
+<h2>The Problem</h2>
+<p>There’s a few instances that I’m going to focus on. Firstly, I’m going to talk about the experience of a new member to a team, then I’m going to consider a team member who has been around for many years, and knows a great deal but equally has forgotten a lot.</p>
+<p>New starters always have a period where they cost more than the value they produce.
+It takes time to build up knowledge in a domain before you can contribute effectively, so it’s in everyone’s interest to maximise the ability of the new starter to learn.</p>
+<p>But complex work has huge barriers to entry.
+I’ve seen this recently with new members of my team working on Solvency II work for EU insurers.
+Solvency II is a fairly complex and nuanced solvency capital framework to which most graduate trainees won’t have any prior exposure.
+How do we empower these trainee to extract the specific information that allows them to carry out the tasks assigned to them while also building their own understanding of the wider considerations? It’s not sufficient to hand them a copy of the Delegated Regulation and tell them to figure it out on their own.</p>
+<p>Then there’s not just the technical aspects for a new starter, there’s the practical considerations of joining a pre-existing group of people. The new-joiner’s life would be far easier if all the unwritten rules of a team were discoverable in a way other than making a faux pas and then being corrected.
+I’m not advocating writing endless procedures for how to do everything right down to making the coffee in the morning, but we can certainly do more to make social knowledge more accessible to new team members.</p>
+<p>For established team members then, we also need to provide facilities to store their insights over time.
+If a particular difficult job raises difficult conceptual challenges that a team member overcomes, that new insight needs to be captured and stored in a system that makes it accessible to the whole team.
+And just with writing code documentation, it’s likely that a main beneficiary of that knowledge work would be the person who figured it out originally and has since forgotten it.</p>
+<p>I know several times I’ve had to figure difficult things out in the full knowledge that I or someone else on my team has done it before but I just couldn’t remember where we put the solution.
+In all instances, I’ve wished there was some repository of team knowledge, some fountain of wisdom that I could consult that would show me the way.</p>
+</div>
+<div id="sketching-a-solution" class="section level2">
+<h2>Sketching a Solution</h2>
+<p>I have seen a variety of attempts to capture certain aspects of knowlege, but they often fall short for a number of reasons.
+I will admit that most of these attempts were mine and I’d like to take some time to reflect on what was lacking in order to sketch out what the ideal would be.</p>
+<div id="knowledge-must-be-in-an-obvious-place" class="section level3">
+<h3>Knowledge must be in an obvious place</h3>
+<p>The past failed attempts were often in silos: We figured something out that worked for a particular client, so we documented this in a place related to that client.
+When we encountered a similar problem on another client the solution wasn’t readily apparent.</p>
+<p>So knowledge gained by any team member needs to be deposited in a single, centralised place that’s accessible by all members.</p>
+</div>
+<div id="knowledge-has-to-be-discoverable" class="section level3">
+<h3>Knowledge has to be discoverable</h3>
+<p>But just holding it in a central place means nothing if it isn’t richly searchable.
+This means a full-text search, possibly tagging of concepts and maybe introducing two of my favourite PKM concepts:</p>
+<ul>
+<li><strong>backlinks</strong>: We’re all comfortable with forward links; anyone who has been on the internet understands how one page can link to another. Given a web page <em>A</em>, the forward links out of it is just the set of pages that <em>A</em> links to. Backlinks are the opposite: the set of pages that link <strong>to</strong> <em>A</em>. Having bi-directional links in a knowledge base means that you can traverse conceptual linkages in both directions and discover related concepts with ease.</li>
+<li><strong>Knowledge Graphs</strong>: As a consequence of meaningful and rich linking between topics, a graph structure develops. This makes it even easier to discover related concepts that are a few steps over. This encourages new insights and connections that strengthen understanding.</li>
+</ul>
+<p>In a corporate setting, this would enable connecting the problems that different (possibly wildly so) clients face and noticing when there are common solutions, even if there are no overlaps on the actual people that work on those clients.</p>
+<p>Finally, it’s got to be easy to ask questions of the system and get back sensible replies. Some sort of decent searching mechanism is essential.</p>
+</div>
+<div id="knowledge-must-be-persistent-and-not-reliant-on-single-people" class="section level3">
+<h3>Knowledge must be persistent and not reliant on single people</h3>
+<p>Stored knowledge and insight must last: It’s quite possible that something discovered won’t be useful for another five or more years.
+It could well be that all those who originally found the knowledge have left the organisation by the time it’s useful again.
+So any knowledge system has to be built for the long term and has to be a full-team effort.</p>
+<p>It needs to be cared for and kept as knowledge is often a company’s most valuable and most ephemeral asset.
+It’s a tragedy when a knowledgeable individual leaves a team without imparting all that they know.</p>
+</div>
+<div id="it-must-be-easy-to-add-to-the-knowledge-base" class="section level3">
+<h3>It must be easy to add to the knowledge base</h3>
+<p>One of my main issues in the past has been documentation written in MS Word or Excel files.
+Any system that locks when in use is fragile.
+If I have something to add to such a document, but someone else has the document open I will usually end up forgetting about it before the document is available.</p>
+<p>The knowledge system must be able to handle multiple editors at any time and with minimal friction.
+The amount of mouse clicks and keyboard presses should be at a minimum such that if someone has input they can capture that information easily.
+All sources of friction increase the probability of knowledge being lost.</p>
+</div>
+<div id="it-must-be-easy-to-maintain-knowledge" class="section level3">
+<h3>It must be easy to maintain knowledge</h3>
+<p>In addition to adding information, multiple people should be able to edit the information in a timestamped/version controlled way.
+It should be possible to see the development of knowledge over time and revert to prior states if needed.
+It is essential that there’s almost no impediment to making corrections or updates.</p>
+</div>
+<div id="the-right-information-must-be-surfaced-when-it-is-needed" class="section level3">
+<h3>The right information must be surfaced when it is needed</h3>
+<p>One of the key selling points of PKM systems is that when curated and linked, they will naturally surface relevant information that the user hadn’t been searching for explicitly and may have forgotten was in there.
+The same thing needs to work in the corporate knowledge world:
+I want to be able to learn from the relevant experience of other team members without having to first know that they have had relevant experiences, the system needs to provide that to me itself.</p>
+</div>
+</div>
+<div id="my-ideal-system" class="section level2">
+<h2>My Ideal System</h2>
+<p>I’ve looked at a number of solutions on the market (though I haven’t tried any out), but I always keep coming back to the realisation that essentially what I want would be a locally hosted version of <a href="https://www.mediawiki.org/wiki/MediaWiki">MediaWiki</a> that powers Wikipedia, with additional backlinks and graph view.</p>
+<p>But more than that, I think the topic of knowledge management needs to be instilled in the organisation’s cultural values.
+Learning for learning’s sake needs to be valued and then the storage of that gained knowledge for the benefit of all needs to be given priority.
+It will cost the organisation both in money to set up the infrastructure and the time needed for adding content and curation, but I honestly believe that such systems would benefit organisations multiple times above any costs.</p>
+<p>Perhaps it is time to bring back positions of dedicated knowledge management functions.</p>
+</div>
