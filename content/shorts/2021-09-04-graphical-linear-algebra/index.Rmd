@@ -1,0 +1,16 @@
+---
+title: Graphical Linear Algebra
+author: Michael
+date: '2021-09-04'
+slug: graphical-linear-algebra
+categories: []
+tags: []
+---
+
+I'm reading Fong and Spivak's [An Invitation to Applied Category Theory](https://www.cambridge.org/core/books/an-invitation-to-applied-category-theory/D4C5E5C2B019B2F9B8CE9A4E9E84D6BC) at the moment.
+It's a wonderful read; challenging in places but clearly written. 
+The subject matter is fascinating.
+
+One of the additional resources in listed in Chapter 4 is Pawel Sobocinski's website, https://graphicallinearalgebra.net/. This is a take on linear algebra that I've not seen before and, along with Fong and Spivak's book, it's got me thinking about the power of constructing diagramatic languages to solve problems. 
+
+I'm only a few parts through, but so far I would really recommend taking a look to anyone interested in linear algebra, category theory or new takes on familar mathematics.

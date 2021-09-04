@@ -18,7 +18,9 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
 [[menu.main]]
     name = "Slides"
     url = "/slides/"
-
+[[menu.main]]
+    name = "Shorts"
+    url = "/shorts/"
 
 [params]
     description = "Personal website of Michael Jones"
