@@ -9,7 +9,7 @@ Generally I will try to write a blog post to accompany the talk where I think th
 My presentation style is focussed on around simple slides with a single idea on each without too much text, so as stand-alone documents, they may be less clear. 
 I think slides are meant to support a live, in-person talk.
 
-- Bayes for Actuaries [slides](/slides/bayestalk.html), a talk I did back in 2018 to the local Actuarial Society on Bayesian Statistics and MCMC.
+- Bayes for Actuaries: [slides](/slides/bayestalk.html), a talk I did back in 2018 to the local Actuarial Society on Bayesian Statistics and MCMC.
 - Spreadsheets: [slides](/slides/spreadsheets.html), [post](/2021/06/07/it-s-time-to-rethink-our-tools/)
 - Reproducibility using R: [slides](/slides/reproducibility_presentation.html)
 - Basics of data manipulation using the {tidyverse}: [slides](/slides/data_manipulation.html)
