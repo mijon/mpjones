@@ -1,0 +1,711 @@
+---
+title: Old Wickham's Book of Practical Cats
+author: Michael
+date: '2021-11-19'
+slug: old-wickham-s-book-of-practical-cats
+categories:
+  - r
+  - functional programming
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>I’ve been learning <a href="https://www.haskell.org/">Haskell</a> recently.
+I’m still very much a novice with the language, so can’t talk much to it but the headline is that it’s a lazy, strongly-typed, purely functional language.
+It’s a fascinating language with some really useful features and has the potential to teach us how to write better code in R.</p>
+<p>Because Haskell is purely functional, it’s got some interesting ways of working.
+For example, there are no loops in Haskell, <code>for</code> isn’t a thing.
+This may seem like a massive hole in a language, but Haskell doesn’t need control flow like <code>for</code> since the same outcome can be achieved with recursion and mapping.
+These concepts have filtered out into other paradigms in recent years, they are are fundamental functional programming concepts.</p>
+<p>I’m not going to write much more about Haskell in this post (but I will in a future post), but learning Haskell has provided a view into a way of working with code and data that is often highly expressive and simple to read.
+While there are languages that are ‘functional’ as a defining feature, you can program in a functional style in many languages.
+Luckily for us, R <em>is</em> a functional (or at least functional-adjacent) language already and so lessons we learn in Haskell can be brought over to make our R code better.</p>
+</div>
+<div id="what-does-functional-language-even-mean" class="section level2">
+<h2>What does ‘functional language’ even mean?</h2>
+<p>The vital element of functional languages is <strong>first class functions</strong>.
+This feature is required to make all the other pieces of functional programming possible.
+This really means that functions are things that can be passed around like any other value or object.</p>
+<p>For example, integers are first-class objects in almost all languages, you can put an integer into a variable, you can pass them into functions or procedures and just by doing so we can build up a pretty good feel for what that means.</p>
+<p>In languages that have first class functions, you can do similar things with functions.
+For example, in R, let’s define a function:</p>
+<pre class="r"><code>my_func &lt;- function(x) {
+  x + 1
+}</code></pre>
+<p>This is a pretty boring function that just adds 1 to its input, but it will suffice to show our point.
+The first thing to notice is that we’re using the same operation to give the function a name as we would with any other variable.
+This is something that points to R as a functional language, there is no special function declaration statement like in python where we might type something like:</p>
+<pre class="python"><code>def my_func(x):
+  return(x + 1)</code></pre>
+<p>Instead the <code>function</code> bit makes a function object and we put it in a box called “<code>my_func</code>” using <code>&lt;-</code>.<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a></p>
+<p>We can put it in another box if we want:</p>
+<pre class="r"><code>new_name &lt;- my_func
+
+new_name(2)</code></pre>
+<pre><code>## [1] 3</code></pre>
+<p>Or we can even pass it into another function as an argument:</p>
+<pre class="r"><code>calls_functions_on_10 &lt;- function(f) {
+  f(10)
+}
+
+calls_functions_on_10(my_func)</code></pre>
+<pre><code>## [1] 11</code></pre>
+<p>We just made a function that accepts <em>another function</em> as an argument and then calls it.
+It’s this ability to pass functions to other functions that exemplifies functional languages.</p>
+</div>
+<div id="in-r" class="section level2">
+<h2>In R</h2>
+<p>All the learning about functional programming (“FP”) in Haskell made me want to learn more about how to do it effectively in R.</p>
+<p>R has a lot of functional abilities from {base}, including things like the <code>*apply</code> family of functions and the <code>Filter</code> and <code>Reduce</code> functions.
+But today, I’d like to dip into the {<a href="https://purrr.tidyverse.org/">purrr</a>} package by Lionel Henry and Hadley Wickham.</p>
+<p>This is a tidyverse package that provides common functional patterns with a consistent interface and with a closer attention to output type than functions from {base}.</p>
+<pre class="r"><code>library(purrr)</code></pre>
+<div id="map" class="section level3">
+<h3><code>map</code></h3>
+<p>The most common set of functions I use from {purrr} are the <code>map</code> family.
+The best way to learn these is in the relevant <a href="https://r4ds.had.co.nz/iteration.html">chapter of R for Data Science</a>, but a brief summary is as follows:</p>
+<p><code>map</code> encapsulates the idea of doing the same action to every element in a structure.
+Where you might want to reach for a for loop, quite often you can do a <code>map</code>.
+They are very similar to the <code>*apply</code> family in {base}.</p>
+<p>The syntax of <code>map()</code> is fairly simple.
+It takes:</p>
+<ul>
+<li>a data structure with elements (most commonly a <code>list</code> or <code>vector</code>) and</li>
+<li>a function that acts on objects corresponding to single elements of that structure.</li>
+</ul>
+<p>i.e.</p>
+<pre class="r"><code>map(list, function)</code></pre>
+<p>The advantage here is that it means you don’t have to write the infrastructure for your iteration.
+Compare the following two code snippets that add one hundred to each element in a list.</p>
+<p>First in an “imperative” style:</p>
+<pre class="r"><code>the_list &lt;- as.list(1:5)
+
+for (i in seq_along(the_list)) {
+  the_list[[i]] &lt;- the_list[[i]] + 100
+}
+
+the_list</code></pre>
+<pre><code>## [[1]]
+## [1] 101
+## 
+## [[2]]
+## [1] 102
+## 
+## [[3]]
+## [1] 103
+## 
+## [[4]]
+## [1] 104
+## 
+## [[5]]
+## [1] 105</code></pre>
+<p>and then using map:</p>
+<pre class="r"><code>add_100 &lt;- function(x) {x + 100}
+
+map(the_list, add_100)</code></pre>
+<pre><code>## [[1]]
+## [1] 201
+## 
+## [[2]]
+## [1] 202
+## 
+## [[3]]
+## [1] 203
+## 
+## [[4]]
+## [1] 204
+## 
+## [[5]]
+## [1] 205</code></pre>
+<p>We’ve defined a function that works on a single element, and <code>map</code> does the job of applying that function to each element of the list.
+We tell R <strong>what</strong> to do, not <strong>how</strong> to do it - that’s another common feature of FP.<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+</div>
+<div id="other-maps" class="section level3">
+<h3>Other <code>map</code>s</h3>
+<p>Note in the above example, we got back a list.
+That’s the return type of <code>map</code>, but we can also specify what return value we want, e.g. a numeric vector using <code>map_dbl</code>:</p>
+<pre class="r"><code>map_dbl(the_list, add_100)</code></pre>
+<pre><code>## [1] 201 202 203 204 205</code></pre>
+<p>{purrr} has a consistent naming convention for all the mapping functions:</p>
+<ul>
+<li><code>map</code> -&gt; list</li>
+<li><code>map_chr</code> -&gt; character vector</li>
+<li><code>map_dbl</code> -&gt; numeric vector</li>
+<li><code>map_int</code> -&gt; integer vector</li>
+<li><code>map_dfr</code> -&gt; data.frame by <strong>row</strong> binding</li>
+<li><code>map_dfc</code> -&gt; data.frame by <strong>column</strong> binding</li>
+<li><code>map_lgl</code> -&gt; logical (boolean) vector</li>
+</ul>
+<p>Then if your function takes two inputs that you want to combine you have a copy of the above in the form of <code>map2_*</code> functions, these have a form:</p>
+<pre class="r"><code>map2(first_list, second_list, f)</code></pre>
+<p>And you’ll get back a list with the <code>i</code>th element containing:</p>
+<pre class="r"><code>f(first_list[[i]], second_list[[i]])</code></pre>
+<p>If you’ve got a function that takes multiple arguments you just wrap those in a list and use <code>pmap</code>:</p>
+<pre class="r"><code>pmap(list(arg1, arg2, ..., argn), f)</code></pre>
+</div>
+<div id="conditional-mapping" class="section level3">
+<h3>Conditional Mapping</h3>
+<p>You also have ways to only apply the function at certain points, for example, whe a predicate is <code>TRUE</code>:</p>
+<pre class="r"><code>the_list &lt;- as.list(1:5)
+is_even &lt;- function(x) x %% 2 == 0
+
+map_if(the_list, is_even, add_100)</code></pre>
+<pre><code>## [[1]]
+## [1] 1
+## 
+## [[2]]
+## [1] 102
+## 
+## [[3]]
+## [1] 3
+## 
+## [[4]]
+## [1] 104
+## 
+## [[5]]
+## [1] 5</code></pre>
+<p>Or apply the function at specific indices with <code>map_at</code>:</p>
+<pre class="r"><code>map_at(the_list, 1:3, add_100)</code></pre>
+<pre><code>## [[1]]
+## [1] 101
+## 
+## [[2]]
+## [1] 102
+## 
+## [[3]]
+## [1] 103
+## 
+## [[4]]
+## [1] 4
+## 
+## [[5]]
+## [1] 5</code></pre>
+</div>
+<div id="implementing-zip-and-zipwith" class="section level3">
+<h3>Implementing <code>zip</code> and <code>zipWith</code></h3>
+<p>Zipping is a concept that’s common in Haskell but is even in languages such as Python.
+Given two lists<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a> of values, e.g.</p>
+<pre class="r"><code>list_1 &lt;- c(1,2,3)
+list_2 &lt;- c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;)</code></pre>
+<p>We want to produce a new list with like-indexed pairs matched.
+I.e. we want to get out something like:</p>
+<pre class="r"><code>new_list &lt;- list(
+   list(1, &quot;a&quot;),
+   list(2, &quot;b&quot;),
+   list(3, &quot;c&quot;)
+) </code></pre>
+<p><code>zipWith</code> is an extension to <code>zip</code> that will apply a given function to the matching elements when zipping up the lists.</p>
+<p>{purrr} and R don’t have a <code>zip</code> function or a <code>zipWith</code> function that will do this, but we can easily make it with <code>map2</code>:</p>
+<p>The trick here is noting that <code>zip</code> is just a specific case of the more general <code>zipWith</code> when the function is list appending:</p>
+<pre class="r"><code>zip &lt;- function(left, right) {
+  map2(left, right, list)
+}
+
+zip(list_1, list_2)</code></pre>
+<pre><code>## [[1]]
+## [[1]][[1]]
+## [1] 1
+## 
+## [[1]][[2]]
+## [1] &quot;a&quot;
+## 
+## 
+## [[2]]
+## [[2]][[1]]
+## [1] 2
+## 
+## [[2]][[2]]
+## [1] &quot;b&quot;
+## 
+## 
+## [[3]]
+## [[3]][[1]]
+## [1] 3
+## 
+## [[3]][[2]]
+## [1] &quot;c&quot;</code></pre>
+<p>Or we could do something like:</p>
+<pre class="r"><code>combine_function &lt;- function(num, letter) {
+  paste0(letter, &quot;: &quot;, num)
+}
+
+map2(list_1, list_2, combine_function)</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;a: 1&quot;
+## 
+## [[2]]
+## [1] &quot;b: 2&quot;
+## 
+## [[3]]
+## [1] &quot;c: 3&quot;</code></pre>
+<p>This code is far terser than the alternative using <code>for</code> loops.
+This means that once you understand the <code>map</code> functions, you can read and understand FP code faster since there’s less boiler plate around.
+I think so, anyway.</p>
+</div>
+</div>
+<div id="other-tools-in-purrr" class="section level2">
+<h2>Other tools in {purrr}</h2>
+<p>Like I said above, I use <code>map</code> and friends frequently.
+So frequently in fact that I rarely reach further into {purrr}, but there are some useful functions that I want to highlight.</p>
+<div id="accumulation" class="section level3">
+<h3>Accumulation</h3>
+<p>If you’ve got a data structure that can be iterated over, and you have an operation that works between two elements of the structure you can step wise apply the operation to elements to <code>accumulate</code> the result over time.
+This is probably best understood with an example:</p>
+<p>We will calculate and show the first 5 <a href="https://en.wikipedia.org/wiki/Triangular_number">Triangular Numbers</a>.
+These are essentially the sum of all integers below some given integer:</p>
+<p><span class="math display">\[
+T_k = \sum_{n = 1}^k k = 1 + 2 + ... + k
+\]</span></p>
+<p>In imperative code (using for loops):</p>
+<pre class="r"><code>accumulation &lt;- 0
+results &lt;- c()
+for (i in 1:5) {
+  accumulation &lt;- accumulation + i
+  results &lt;- c(results, accumulation)
+}
+results</code></pre>
+<pre><code>## [1]  1  3  6 10 15</code></pre>
+<p>In FP with {purrr}:</p>
+<pre class="r"><code>accumulate(1:5, `+`)</code></pre>
+<pre><code>## [1]  1  3  6 10 15</code></pre>
+<p>I think this is so much cleaner.</p>
+<p>Just to be totally clear, the above code is doing the following to a list of <code>(1,2,3,4,5)</code>.</p>
+<ul>
+<li>The first element of the output is just the first value of the input: 1</li>
+<li>The second element of the output is the result of applying the function (in this case <code>+</code>) to the most recent calculated value (1) with the second element of the input (2), giving 1 + 2 = 3</li>
+<li>The third output element is then the 3 we just calculated + the third element of the input, 3 giving 6</li>
+<li>The fourth output element is 6 + 4 = 10</li>
+<li>The fifth output element is 10 + 5 = 15</li>
+</ul>
+<p>In this case, obviously there’s a function for this already, the cumulative sum:</p>
+<pre class="r"><code>cumsum(1:5)</code></pre>
+<pre><code>## [1]  1  3  6 10 15</code></pre>
+<p>But perhaps the way to think about this, is that (mathematically at least), cumulative sum is just a special case of accumulation where the accumulating function is <code>+</code>.
+Since you can use any function of two arguments in <code>accumulate</code> it’s far more general: by changing the binary operation (the function) you can make new accumulators, e.g. a cumulative divide using <code>/</code> in the place of <code>+</code>.</p>
+</div>
+<div id="reduction" class="section level3">
+<h3>Reduction</h3>
+<p>I can’t talk about <code>accumulate</code> without talking about <code>reduce</code>.
+<code>reduce</code> applies the same logic of <code>accumulate</code> but only gives you back the final result.</p>
+<p>For example, calculating a total:</p>
+<pre class="r"><code>reduce(1:5, `+`)</code></pre>
+<pre><code>## [1] 15</code></pre>
+<p>Concatenating strings</p>
+<pre class="r"><code>reduce(1:5, paste)</code></pre>
+<pre><code>## [1] &quot;1 2 3 4 5&quot;</code></pre>
+<p>As for <code>accumulate</code> the trivial examples shown for explanation purposes have their own functions, but <code>reduce</code> captures a general pattern of combining elements with an operation that works on only two elements at a time.</p>
+<p>The key requirement for <code>reduce</code> and <code>accumulate</code> is that your operation does not change the type: Addition is fine as <code>+</code> takes two numbers and gives you back a number so it can be used in the next application of <code>+</code>.</p>
+</div>
+<div id="being-defensive" class="section level3">
+<h3>Being Defensive</h3>
+<p>When <code>map</code>ing over inputs one would hope that the function would work, but to be careful programmers we should be prepared for the worst.</p>
+<p>Luckily {purrr} has wrappers for functions that will handle errors. These are called “adverbs” in {purrr} as they modify verbs (the functions that you use in <code>map</code> for example).</p>
+<p>They wrap your functions when you put them into <code>map</code>. If your function is represented by <code>f</code>, and these adverbs are represented by <code>adverb</code> then you might write something like:</p>
+<pre class="r"><code>map(list, adverb(f))</code></pre>
+<p>They include:</p>
+<div id="auto_browse" class="section level4">
+<h4><code>auto_browse</code></h4>
+<p>This will drop you into the debugger if the function <code>f</code> raises an error.</p>
+</div>
+<div id="possibly" class="section level4">
+<h4><code>possibly</code></h4>
+<p>This lets you provide a default value for your function <code>f</code> in the case that it fails. For example:</p>
+<pre class="r"><code>fail_on_div_by_zero &lt;- function(x) {
+  if (x == 0) {
+    stop(&quot;Div by zero error&quot;)
+  } else {
+    10 / x
+  }
+}
+
+map(c(-2, -1, 0, 1, 2),
+    possibly(fail_on_div_by_zero,
+             otherwise = 999))</code></pre>
+<pre><code>## [[1]]
+## [1] -5
+## 
+## [[2]]
+## [1] -10
+## 
+## [[3]]
+## [1] 999
+## 
+## [[4]]
+## [1] 10
+## 
+## [[5]]
+## [1] 5</code></pre>
+<p>Useful if we have a function that may fail, and an obvious default value and we want the <code>map</code> to always succeed.</p>
+</div>
+<div id="quietly" class="section level4">
+<h4><code>quietly</code></h4>
+<p>If a function prints what it is doing to the console, mapping it over a long list would clutter your console.
+You may also want to keep this information.
+<code>quietly()</code> wraps your function and collects the output while suppressing any noise.</p>
+<p>So while a regular <code>map</code> will return a list where each element is the result of calling <code>f</code> on the element of the list, a function wrapped with <code>quietly</code> will return a list where each element is itself a list of:</p>
+<ul>
+<li><code>result</code>: the result of applying <code>f</code> to the input element, this would be the value shown in the regular use of <code>map</code></li>
+<li><code>output</code>: anything printed to the console</li>
+<li><code>warnings</code>: anything raised as a <code>warning()</code></li>
+<li><code>messages</code>: anything raised as a <code>message()</code></li>
+</ul>
+<p>Example:</p>
+<pre class="r"><code>noisy_add &lt;- function(x) {
+  print(paste(&quot;Adding 10 to:&quot;, x))
+  
+  if (x == 3) {
+    message(&quot;Lucky number 3&quot;)
+  }
+  
+  10 + x
+}
+
+map(1:5, quietly(noisy_add))</code></pre>
+<pre><code>## [[1]]
+## [[1]]$result
+## [1] 11
+## 
+## [[1]]$output
+## [1] &quot;[1] \&quot;Adding 10 to: 1\&quot;&quot;
+## 
+## [[1]]$warnings
+## character(0)
+## 
+## [[1]]$messages
+## character(0)
+## 
+## 
+## [[2]]
+## [[2]]$result
+## [1] 12
+## 
+## [[2]]$output
+## [1] &quot;[1] \&quot;Adding 10 to: 2\&quot;&quot;
+## 
+## [[2]]$warnings
+## character(0)
+## 
+## [[2]]$messages
+## character(0)
+## 
+## 
+## [[3]]
+## [[3]]$result
+## [1] 13
+## 
+## [[3]]$output
+## [1] &quot;[1] \&quot;Adding 10 to: 3\&quot;&quot;
+## 
+## [[3]]$warnings
+## character(0)
+## 
+## [[3]]$messages
+## [1] &quot;Lucky number 3\n&quot;
+## 
+## 
+## [[4]]
+## [[4]]$result
+## [1] 14
+## 
+## [[4]]$output
+## [1] &quot;[1] \&quot;Adding 10 to: 4\&quot;&quot;
+## 
+## [[4]]$warnings
+## character(0)
+## 
+## [[4]]$messages
+## character(0)
+## 
+## 
+## [[5]]
+## [[5]]$result
+## [1] 15
+## 
+## [[5]]$output
+## [1] &quot;[1] \&quot;Adding 10 to: 5\&quot;&quot;
+## 
+## [[5]]$warnings
+## character(0)
+## 
+## [[5]]$messages
+## character(0)</code></pre>
+<p>Useful when we want to keep the output around to look at later, but we don’t want it cluttering up the console.</p>
+<p>Note that <code>quietly</code> doesn’t handle errors.</p>
+</div>
+<div id="safely" class="section level4">
+<h4><code>safely</code></h4>
+<p><code>safely</code> is like <code>quietly</code> but for errors.
+It returns a list of lists with elements:</p>
+<ul>
+<li><code>result</code>:
+<ul>
+<li>The value of <code>f</code> on the input if the function works,</li>
+<li>NULL otherwise</li>
+</ul></li>
+<li><code>error</code>:
+<ul>
+<li>NULL if <code>f</code> works</li>
+<li>The error object if <code>f</code> fails</li>
+</ul></li>
+</ul>
+<p>Example:</p>
+<pre class="r"><code>map(c(-2, -1, 0, 1, 2),
+    safely(fail_on_div_by_zero,
+           otherwise = 999))</code></pre>
+<pre><code>## [[1]]
+## [[1]]$result
+## [1] -5
+## 
+## [[1]]$error
+## NULL
+## 
+## 
+## [[2]]
+## [[2]]$result
+## [1] -10
+## 
+## [[2]]$error
+## NULL
+## 
+## 
+## [[3]]
+## [[3]]$result
+## [1] 999
+## 
+## [[3]]$error
+## &lt;simpleError in .f(...): Div by zero error&gt;
+## 
+## 
+## [[4]]
+## [[4]]$result
+## [1] 10
+## 
+## [[4]]$error
+## NULL
+## 
+## 
+## [[5]]
+## [[5]]$result
+## [1] 5
+## 
+## [[5]]$error
+## NULL</code></pre>
+<p>This is useful when we want the functionality of <code>possibly</code> but we also want to affirmatively detect whether an error was raised.
+This is important if we need to be able to distinguish between a true value match the default or when the default was inserted because there was an error.</p>
+</div>
+</div>
+<div id="keeping-or-discarding-elements" class="section level3">
+<h3>Keeping or Discarding Elements</h3>
+<p>Sometimes you may have a list or a vector with a load of stuff you want and some items you don’t.</p>
+<p>If you have a predicate that is <code>TRUE</code> for things you <strong>want</strong>, use <code>keep</code>:</p>
+<pre class="r"><code>my_values &lt;- 1:10
+
+keep(my_values, is_even)</code></pre>
+<pre><code>## [1]  2  4  6  8 10</code></pre>
+<p>If you have a predicate that is <code>TRUE</code> for things you <strong>don’t want</strong>, use <code>discard</code>:</p>
+<pre class="r"><code>discard(my_values, is_even)</code></pre>
+<pre><code>## [1] 1 3 5 7 9</code></pre>
+<p>Obviously these two are linked: <code>keep</code> with a predicate that’s <code>TRUE</code> for things you want is the same as <code>discard</code> with a predicate that’s <code>FALSE</code> for things you want.</p>
+<p>I’d say use whichever best describes your intention:
+Sometimes your intention will be something like “keep all the items that satisfy a condition” and sometimes it will be “get rid of all the items with this characteristic”.</p>
+</div>
+<div id="crossing-and-outer-products" class="section level3">
+<h3>Crossing and Outer products</h3>
+<p>Outer products or Cartesian products are great in a situation where you want to match every item in a list with every item in another list.</p>
+<p>For example, we can make a multiplication table using <code>cross</code>:</p>
+<pre class="r"><code>product &lt;- function(l) {
+  l$left * l$right
+}
+
+cross(list(left = 1:10,
+           right = 1:10)) %&gt;%
+  map(product) %&gt;%
+  matrix(nrow = 10, ncol = 10)</code></pre>
+<pre><code>##       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10]
+##  [1,] 1    2    3    4    5    6    7    8    9    10   
+##  [2,] 2    4    6    8    10   12   14   16   18   20   
+##  [3,] 3    6    9    12   15   18   21   24   27   30   
+##  [4,] 4    8    12   16   20   24   28   32   36   40   
+##  [5,] 5    10   15   20   25   30   35   40   45   50   
+##  [6,] 6    12   18   24   30   36   42   48   54   60   
+##  [7,] 7    14   21   28   35   42   49   56   63   70   
+##  [8,] 8    16   24   32   40   48   56   64   72   80   
+##  [9,] 9    18   27   36   45   54   63   72   81   90   
+## [10,] 10   20   30   40   50   60   70   80   90   100</code></pre>
+<ul>
+<li><code>cross</code> does the matching between pairs, giving us back a list of all pairings</li>
+<li><code>map</code> is then used to apply a function that multiplies the two elements of a list together</li>
+<li>then we make it into a matrix using <code>matrix</code></li>
+</ul>
+<p>There are quite a few instances when <code>cross</code> (or the related function <code>crossing()</code> from {tidyr}) is useful for making grids to search over an n-dimensional parameter space.
+Or if you have a function of two variables that you want to show as a surface plot, you can generate all the (x,y) coordinate pairs using <code>cross</code>.</p>
+</div>
+<div id="lifting-domains-of-functions" class="section level3">
+<h3>Lifting domains of functions</h3>
+<p>In R there are three common ways to accept inputs into a function:</p>
+<ul>
+<li>Named arguments, e.g. <code>f(arg1 = 1, arg2 = 2, arg3 = 3)</code> (which also covers <code>...</code>) (type <code>d</code>)</li>
+<li>As a list e.g. <code>f(list(1,2,3))</code> (type <code>v</code>)</li>
+<li>As a vector e.g. <code>f(c(1,2,3))</code> (type <code>c</code>)</li>
+</ul>
+<p>The <code>lift*</code> family provide wrapping functions that translate functions that take arguments a certain way into functions that take arguments another way.</p>
+<p>The <code>lift</code> family has a number of functions that are named like <code>lift_xy</code>.
+This will take a function that accepts arguments the way of <code>x</code> and returns a function that accepts arguments the way of <code>y</code>.
+<code>x</code> and <code>y</code> can take any (different) values from <code>d</code>, <code>v</code> and <code>c</code>.
+For example, <code>lift_dv()</code>.</p>
+<p>This is useful when you have data structured one way, but need to use a function that takes arguments in a different way.
+One option would be to transform your data to match your function, but that could be hard.
+It may be easier to transform your function to match your data.</p>
+<p>As an example, let’s say we have data that is structured as a nested list:</p>
+<pre class="r"><code>my_data &lt;- list(
+  list(number = 1, text = &quot;This is number one&quot;),
+  list(number = 2, text = &quot;This is number two&quot;),
+  list(number = 100, text = &quot;This is number 100&quot;)
+)</code></pre>
+<p>Then we have a function that takes named arguments:</p>
+<pre class="r"><code>my_describer &lt;- function(number, text) {
+  paste(number, &quot;:&quot;, text)
+}</code></pre>
+<p>We can write code like:</p>
+<pre class="r"><code>my_describer(number = 10, text = &quot;Hello ten&quot;)</code></pre>
+<pre><code>## [1] &quot;10 : Hello ten&quot;</code></pre>
+<p>So we might try to <code>map</code> over our data:</p>
+<pre class="r"><code>map(my_data, my_describer)</code></pre>
+<pre><code>## Error in paste(number, &quot;:&quot;, text): argument &quot;text&quot; is missing, with no default</code></pre>
+<p>And we get the error because <code>my_describer</code> expects two arguments and we’ve only given it one (the second-level list in <code>my_data</code>).</p>
+<p>We note that our function takes named values but we want to apply it to a list, so we can <code>lift</code> the domain of the function to lists using <code>lift_dl</code>.</p>
+<pre class="r"><code>map(my_data, lift_dl(my_describer))</code></pre>
+<pre><code>## [[1]]
+## [1] &quot;1 : This is number one&quot;
+## 
+## [[2]]
+## [1] &quot;2 : This is number two&quot;
+## 
+## [[3]]
+## [1] &quot;100 : This is number 100&quot;</code></pre>
+<p>This can useful for composing functions together into larger chains when the output of one function may produce a list, but the next function in a chain expects named arguments.</p>
+</div>
+<div id="partial-application" class="section level3">
+<h3>Partial Application</h3>
+<p>Partial Application is the process of taking a function of <span class="math inline">\(n\)</span> variables, filling in <span class="math inline">\(k&lt;n\)</span> of them and getting a new function out the end that takes the remaining <span class="math inline">\(n-k\)</span> variables.</p>
+<p>More concretely, say we have a function defined as so:</p>
+<pre class="r"><code>combine_three &lt;- function(x, y, z) {
+  paste0(x, &quot;, &quot;, y, &quot;, and &quot;, z)
+}
+
+combine_three(&quot;apples&quot;, &quot;oranges&quot;, &quot;pears&quot;)</code></pre>
+<pre><code>## [1] &quot;apples, oranges, and pears&quot;</code></pre>
+<p>which takes three values.</p>
+<p>We can make a new function that is a version of this function but has two variables fixed.
+There’s a verbose, obvious way and a {purrr} way:</p>
+<pre class="r"><code>verbose_way &lt;- function(z) {
+  combine_three(x = &quot;apples&quot;, &quot;oranges&quot;, z)
+}
+verbose_way(&quot;elephants&quot;)</code></pre>
+<pre><code>## [1] &quot;apples, oranges, and elephants&quot;</code></pre>
+<pre class="r"><code>purrr_way &lt;- partial(combine_three,
+                     x = &quot;apples&quot;,
+                     y = &quot;pears&quot;)
+purrr_way(&quot;mice&quot;)</code></pre>
+<pre><code>## [1] &quot;apples, pears, and mice&quot;</code></pre>
+<p>These produce (basically) the same thing, but the version made with <code>partial</code>, I think, shows intention more clearly; the verbose way is the nuts and bolts of defining a totally new function and you only understand by reading the full definition that we are doing partial application, whereas in the {purrr} way, you know this going in when you read <code>partial</code>.</p>
+<p>Code that shows its intention clearly is better code.</p>
+<p>I use this when there’s a function from a package that has a great many options and I know that for a certain use case I want to fill some of those in and ‘set’ them in advance.</p>
+<p>It works on any function, so that <code>add_100</code> function from before could be defined as:</p>
+<pre class="r"><code>add_100 &lt;- partial(`+`, 100)</code></pre>
+</div>
+<div id="compose" class="section level3">
+<h3><code>compose</code></h3>
+<p>With the popularity of the tidyverse many R programmers have got used to piping data through multiple functions.
+So much so that R4.1 introduced the native pipe, <code>|&gt;</code>.
+But these still take need some data in the front<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.</p>
+<p>Often in full functional languages like Haskell, we will make new functions out of smaller functions without even referencing the inputs.
+This “<a href="https://en.wikipedia.org/wiki/Tacit_programming">point-free</a>” style <em>can</em> lead to more expressive and clearer code.</p>
+<p>This is done through <strong>composition</strong> of functions.</p>
+<p>In mathematics if we have a function <span class="math inline">\(f : x \to y\)</span> and a function <span class="math inline">\(g: y\to z\)</span> (here <span class="math inline">\(x\)</span>, <span class="math inline">\(y\)</span> and <span class="math inline">\(z\)</span> just denote the domains of the functions), we can make a new function <span class="math inline">\(g \circ f : x \to z\)</span>, read “g after f”, that is a function in its own right. It defines a mapping that is the same as doing <span class="math inline">\(f\)</span>, then doing <span class="math inline">\(g\)</span> to the result, i.e. <span class="math inline">\((g \circ f)(x) = g(f(x))\)</span> with some input <span class="math inline">\(x\)</span>.</p>
+<p>Note how we had to introduce an input in the final definition there, whereas before this we were just talking about functions in an abstract way without considering specific inputs.</p>
+<p>It turns out we can do the same thing with R code to take a handful of simple functions and build them up to something larger.</p>
+<p>So let’s built a function that will</p>
+<ul>
+<li>take a string of numbers, e.g. “1 2 3 4 5”</li>
+<li>split the string by spaces</li>
+<li>convert the list of strings into a list of numbers</li>
+<li>add 100 to each number</li>
+<li>keep only those greater than 103</li>
+<li>return the product</li>
+</ul>
+<p>By writing out the steps, we essentially list the simple functions we will need to compose.</p>
+<pre class="r"><code># take the very first element of a list
+take_first &lt;- function(l) {
+  l[[1]]
+}
+
+# Predicate function, TRUE only if input  is larger than 103
+greater_than_103 &lt;- function(x) {
+  x &gt; 103
+}
+
+fancy_pipeline &lt;-
+  compose(
+    partial(stringr::str_split, pattern = &quot; &quot;),
+    take_first,
+    as.numeric,
+    add_100,
+    partial(keep, .p=greater_than_103),
+    prod,
+    .dir = &quot;forward&quot;
+  )</code></pre>
+<p>We’ve used <code>partial</code> a couple of times to partially apply some of the functions we have defined.
+But overall, this expresses our process clearly as a series of steps.
+By specifying <code>.dir = "forward"</code> we override the default ‘mathematical’ order for defining the steps and can input them in the order that they touch the data.</p>
+<p>On an input string “1 2 3 4 5”, this will produce 101, 102, 103, 104, 105, which will be filtered down into 104, 105, the product of which is 10920.
+We can use our function to get the same answer:</p>
+<pre class="r"><code>fancy_pipeline(&quot;1 2 3 4 5&quot;)</code></pre>
+<pre><code>## [1] 10920</code></pre>
+<p>If we look at the function, we can still see how it was made:</p>
+<pre class="r"><code>fancy_pipeline</code></pre>
+<pre><code>## &lt;composed&gt;
+## 1. &lt;partialised&gt;
+## function (...) 
+## stringr::str_split(pattern = &quot; &quot;, ...)
+## 
+## 2. function(l) {
+##   l[[1]]
+## }
+## 
+## 3. function (x, ...) 
+## .Primitive(&quot;as.double&quot;)(x, ...)
+## 
+## 4. &lt;partialised&gt;
+## function (...) 
+## 100 + ...
+## 
+## 5. &lt;partialised&gt;
+## function (...) 
+## keep(.p = greater_than_103, ...)
+## 
+## 6. function (..., na.rm = FALSE) 
+## .Primitive(&quot;prod&quot;)(..., na.rm = na.rm)</code></pre>
+<p>Functional composition lets us define large functions from smaller (simpler and therefore easier to test) sub-functions and be explicit about how the larger functions are constructed.</p>
+</div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>While <code>map</code> is still my most commonly used function from {purrr}, looking in more detail at the offerings of the package has been fascinating.
+I’ve only covered a few items here, so I would recommend the reader look more at the purrr NAMESPACE and see what else it has to offer.</p>
+<p>There’s a whole lot of benefits to adopting a functional style including clearer and more expressive code that’s easier to test.
+While R still has a lot of distance to cover to catch up to Haskell (and it’s not trying to anyway), you can still adopt an FP style in your R code either with base or with {purrr}. I’m certainly going to continue looking for opportunities to simplify my code using <code>lift</code>s or <code>partial</code> or bolstering my <code>maps</code> using <code>possibly</code> or <code>safely</code>.</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>If you want to get confusingly precise, <code>function</code> is a function that makes functions, and <code>&lt;-</code> is a function that can be used to bind the function result from <code>function</code> to a name<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Another important feature is <em>immutability</em>, see how in the imperative example we modified the list during the for loop, but it’s worth noting that while the output from the <code>map</code> function starts with 201, the first value in <code>the_list</code> is still 101: <code>map</code> makes a new list and does not modify the input.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>using “list” here in a colloquial sense and not as a specific <code>list()</code> type in R<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>While you <em>can</em> make a pipeline open at the start using the dot: <code>. %&gt;% function()</code>, it’s not quite the same as function composition as you still have that dot pretending to be data<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>

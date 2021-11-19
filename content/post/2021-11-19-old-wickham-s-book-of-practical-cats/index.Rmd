@@ -1,0 +1,629 @@
+---
+title: Old Wickham's Book of Practical Cats
+author: Michael
+date: '2021-11-19'
+slug: old-wickham-s-book-of-practical-cats
+categories:
+  - r
+  - functional programming
+tags: []
+---
+
+
+## Introduction
+
+I've been learning [Haskell](https://www.haskell.org/) recently. 
+I'm still very much a novice with the language, so can't talk much to it but the headline is that it's a lazy, strongly-typed, purely functional language.
+It's a fascinating language with some really useful features and has the potential to teach us how to write better code in R.
+
+Because Haskell is purely functional, it's got some interesting ways of working.
+For example, there are no loops in Haskell, `for` isn't a thing.
+This may seem like a massive hole in a language, but Haskell doesn't need control flow like `for` since the same outcome can be achieved with recursion and mapping. 
+These concepts have filtered out into other paradigms in recent years, they are are fundamental functional programming concepts.
+
+I'm not going to write much more about Haskell in this post (but I will in a future post), but learning Haskell has provided a view into a way of working with code and data that is often highly expressive and simple to read.
+While there are languages that are 'functional' as a defining feature, you can program in a functional style in many languages. 
+Luckily for us, R *is* a functional (or at least functional-adjacent) language already and so lessons we learn in Haskell can be brought over to make our R code better.
+
+## What does 'functional language' even mean?
+
+The vital element of functional languages is **first class functions**. 
+This feature is required to make all the other pieces of functional programming possible.
+This really means that functions are things that can be passed around like any other value or object.
+
+For example, integers are first-class objects in almost all languages, you can put an integer into a variable, you can pass them into functions or procedures and just by doing so we can build up a pretty good feel for what that means.
+
+In languages that have first class functions, you can do similar things with functions.
+For example, in R, let's define a function:
+
+```{r}
+my_func <- function(x) {
+  x + 1
+}
+```
+
+This is a pretty boring function that just adds 1 to its input, but it will suffice to show our point.
+The first thing to notice is that we're using the same operation to give the function a name as we would with any other variable.
+This is something that points to R as a functional language, there is no special function declaration statement like in python where we might type something like:
+
+```python
+def my_func(x):
+  return(x + 1)
+```
+
+Instead the `function` bit makes a function object and we put it in a box called "`my_func`" using `<-`.^[If you want to get confusingly precise, `function` is a function that makes functions, and `<-` is a function that can be used to bind the function result from `function` to a name]
+
+We can put it in another box if we want:
+
+```{r}
+new_name <- my_func
+
+new_name(2)
+```
+
+Or we can even pass it into another function as an argument:
+
+```{r}
+calls_functions_on_10 <- function(f) {
+  f(10)
+}
+
+calls_functions_on_10(my_func)
+```
+
+We just made a function that accepts *another function* as an argument and then calls it.
+It's this ability to pass functions to other functions that exemplifies functional languages.
+
+## In R
+
+All the learning about functional programming ("FP") in Haskell made me want to learn more about how to do it effectively in R.
+
+R has a lot of functional abilities from {base}, including things like the `*apply` family of functions and the `Filter` and `Reduce` functions.
+But today, I'd like to dip into the {[purrr](https://purrr.tidyverse.org/)} package by Lionel Henry and Hadley Wickham.
+
+This is a tidyverse package that provides common functional patterns with a consistent interface and with a closer attention to output type than functions from {base}.
+
+```{r}
+library(purrr)
+```
+
+
+### `map`
+
+The most common set of functions I use from {purrr} are the `map` family. 
+The best way to learn these is in the relevant [chapter of R for Data Science](https://r4ds.had.co.nz/iteration.html), but a brief summary is as follows:
+
+`map` encapsulates the idea of doing the same action to every element in a structure.
+Where you might want to reach for a for loop, quite often you can do a `map`.
+They are very similar to the `*apply` family in {base}.
+
+The syntax of `map()` is fairly simple.
+It takes:
+
+- a data structure with elements (most commonly a `list` or `vector`) and 
+- a function that acts on objects corresponding to single elements of that structure. 
+
+i.e.
+
+```r
+map(list, function)
+```
+
+The advantage here is that it means you don't have to write the infrastructure for your iteration.
+Compare the following two code snippets that add one hundred to each element in a list.
+
+First in an "imperative" style:
+
+```{r}
+the_list <- as.list(1:5)
+
+for (i in seq_along(the_list)) {
+  the_list[[i]] <- the_list[[i]] + 100
+}
+
+the_list
+```
+
+and then using map:
+
+```{r}
+add_100 <- function(x) {x + 100}
+
+map(the_list, add_100)
+```
+
+We've defined a function that works on a single element, and `map` does the job of applying that function to each element of the list.
+We tell R **what** to do, not **how** to do it - that's another common feature of FP.^[Another important feature is *immutability*, see how in the imperative example we modified the list during the for loop, but it's worth noting that while the output from the `map` function starts with 201, the first value in `the_list` is still 101: `map` makes a new list and does not modify the input.]
+
+### Other `map`s
+
+Note in the above example, we got back a list.
+That's the return type of `map`, but we can also specify what return value we want, e.g. a numeric vector using `map_dbl`:
+
+```{r}
+map_dbl(the_list, add_100)
+```
+
+{purrr} has a consistent naming convention for all the mapping functions:
+
+- `map` -> list
+- `map_chr` -> character vector
+- `map_dbl` -> numeric vector
+- `map_int` -> integer vector
+- `map_dfr` -> data.frame by **row** binding
+- `map_dfc` -> data.frame by **column** binding
+- `map_lgl` -> logical (boolean) vector
+
+Then if your function takes two inputs that you want to combine you have a copy of the above in the form of `map2_*` functions, these have a form:
+
+```r
+map2(first_list, second_list, f)
+```
+
+And you'll get back a list with the `i`th element containing:
+
+```r
+f(first_list[[i]], second_list[[i]])
+```
+
+If you've got a function that takes multiple arguments you just wrap those in a list and use `pmap`:
+
+```r
+pmap(list(arg1, arg2, ..., argn), f)
+```
+
+### Conditional Mapping
+
+You also have ways to only apply the function at certain points, for example, whe a predicate is `TRUE`:
+
+```{r}
+the_list <- as.list(1:5)
+is_even <- function(x) x %% 2 == 0
+
+map_if(the_list, is_even, add_100)
+```
+
+Or apply the function at specific indices with `map_at`:
+
+```{r}
+map_at(the_list, 1:3, add_100)
+```
+
+### Implementing `zip` and `zipWith`
+
+Zipping is a concept that's common in Haskell but is even in languages such as Python.
+Given two lists^[using "list" here in a colloquial sense and not as a specific `list()` type in R] of values, e.g.
+
+```{r}
+list_1 <- c(1,2,3)
+list_2 <- c("a", "b", "c")
+```
+
+We want to produce a new list with like-indexed pairs matched.
+I.e. we want to get out something like:
+
+```r
+new_list <- list(
+   list(1, "a"),
+   list(2, "b"),
+   list(3, "c")
+) 
+```
+
+`zipWith` is an extension to `zip` that will apply a given function to the matching elements when zipping up the lists.
+
+{purrr} and R don't have a `zip` function or a `zipWith` function that will do this, but we can easily make it with `map2`:
+
+The trick here is noting that `zip` is just a specific case of the more general `zipWith` when the function is list appending:
+
+```{r}
+zip <- function(left, right) {
+  map2(left, right, list)
+}
+
+zip(list_1, list_2)
+```
+Or we could do something like:
+
+```{r}
+combine_function <- function(num, letter) {
+  paste0(letter, ": ", num)
+}
+
+map2(list_1, list_2, combine_function)
+```
+
+This code is far terser than the alternative using `for` loops. 
+This means that once you understand the `map` functions, you can read and understand FP code faster since there's less boiler plate around.
+I think so, anyway.
+
+## Other tools in {purrr}
+
+Like I said above, I use `map` and friends frequently.
+So frequently in fact that I rarely reach further into {purrr}, but there are some useful functions that I want to highlight.
+
+### Accumulation
+
+If you've got a data structure that can be iterated over, and you have an operation that works between two elements of the structure you can step wise apply the operation to elements to `accumulate` the result over time.
+This is probably best understood with an example:
+
+We will calculate and show the first 5 [Triangular Numbers](https://en.wikipedia.org/wiki/Triangular_number).
+These are essentially the sum of all integers below some given integer:
+
+$$
+T_k = \sum_{n = 1}^k k = 1 + 2 + ... + k
+$$
+
+In imperative code (using for loops):
+
+```{r}
+accumulation <- 0
+results <- c()
+for (i in 1:5) {
+  accumulation <- accumulation + i
+  results <- c(results, accumulation)
+}
+results
+```
+
+In FP with {purrr}:
+
+```{r}
+accumulate(1:5, `+`)
+```
+I think this is so much cleaner.
+
+Just to be totally clear, the above code is doing the following to a list of `(1,2,3,4,5)`.
+
+- The first element of the output is just the first value of the input: 1
+- The second element of the output is the result of applying the function (in this case `+`) to the most recent calculated value (1) with the second element of the input (2), giving 1 + 2 = 3
+- The third output element is then the 3 we just calculated + the third element of the input, 3 giving 6
+- The fourth output element is 6 + 4 = 10
+- The fifth output element is 10 + 5 = 15
+
+In this case, obviously there's a function for this already, the cumulative sum:
+
+```{r}
+cumsum(1:5)
+```
+
+But perhaps the way to think about this, is that (mathematically at least), cumulative sum is just a special case of accumulation where the accumulating function is `+`.
+Since you can use any function of two arguments in `accumulate` it's far more general: by changing the binary operation (the function) you can make new accumulators, e.g. a cumulative divide using `/` in the place of `+`.
+
+### Reduction
+
+I can't talk about `accumulate` without talking about `reduce`.
+`reduce` applies the same logic of `accumulate` but only gives you back the final result.
+
+For example, calculating a total:
+
+```{r}
+reduce(1:5, `+`)
+```
+
+Concatenating strings
+
+```{r}
+reduce(1:5, paste)
+```
+As for `accumulate` the trivial examples shown for explanation purposes have their own functions, but `reduce` captures a general pattern of combining elements with an operation that works on only two elements at a time.
+
+The key requirement for `reduce` and `accumulate` is that your operation does not change the type: Addition is fine as `+` takes two numbers and gives you back a number so it can be used in the next application of `+`.
+
+### Being Defensive
+
+When `map`ing over inputs one would hope that the function would work, but to be careful programmers we should be prepared for the worst. 
+
+Luckily {purrr} has wrappers for functions that will handle errors. These are called "adverbs" in {purrr} as they modify verbs (the functions that you use in `map` for example).
+
+They wrap your functions when you put them into `map`. If your function is represented by `f`, and these adverbs are represented by `adverb` then you might write something like:
+
+```r
+map(list, adverb(f))
+```
+
+They include:
+
+#### `auto_browse`
+
+This will drop you into the debugger if the function `f` raises an error.
+
+#### `possibly`
+
+This lets you provide a default value for your function `f` in the case that it fails. For example:
+
+```{r}
+fail_on_div_by_zero <- function(x) {
+  if (x == 0) {
+    stop("Div by zero error")
+  } else {
+    10 / x
+  }
+}
+
+map(c(-2, -1, 0, 1, 2),
+    possibly(fail_on_div_by_zero,
+             otherwise = 999))
+```
+Useful if we have a function that may fail, and an obvious default value and we want the `map` to always succeed.
+
+#### `quietly`
+
+If a function prints what it is doing to the console, mapping it over a long list would clutter your console. 
+You may also want to keep this information.
+`quietly()` wraps your function and collects the output while suppressing any noise.
+
+So while a regular `map` will return a list where each element is the result of calling `f` on the element of the list, a function wrapped with `quietly` will return a list where each element is itself a list of:
+
+- `result`: the result of applying `f` to the input element, this would be the value shown in the regular use of `map`
+- `output`: anything printed to the console
+- `warnings`: anything raised as a `warning()`
+- `messages`: anything raised as a `message()`
+
+Example:
+
+```{r}
+noisy_add <- function(x) {
+  print(paste("Adding 10 to:", x))
+  
+  if (x == 3) {
+    message("Lucky number 3")
+  }
+  
+  10 + x
+}
+
+map(1:5, quietly(noisy_add))
+```
+
+
+Useful when we want to keep the output around to look at later, but we don't want it cluttering up the console.
+
+Note that `quietly` doesn't handle errors.
+
+#### `safely`
+
+`safely` is like `quietly` but for errors. 
+It returns a list of lists with elements:
+
+- `result`:
+  - The value of `f` on the input if the function works,
+  - NULL otherwise
+- `error`:
+  - NULL if `f` works
+  - The error object if `f` fails
+  
+Example:
+
+```{r}
+map(c(-2, -1, 0, 1, 2),
+    safely(fail_on_div_by_zero,
+           otherwise = 999))
+```
+This is useful when we want the functionality of `possibly` but we also want to affirmatively detect whether an error was raised.
+This is important if we need to be able to distinguish between a true value match the default or when the default was inserted because there was an error.
+
+### Keeping or Discarding Elements
+
+Sometimes you may have a list or a vector with a load of stuff you want and some items you don't.
+
+If you have a predicate that is `TRUE` for things you **want**, use `keep`:
+
+```{r}
+my_values <- 1:10
+
+keep(my_values, is_even)
+```
+
+If you have a predicate that is `TRUE` for things you **don't want**, use `discard`:
+
+```{r}
+discard(my_values, is_even)
+```
+
+Obviously these two are linked: `keep` with a predicate that's `TRUE` for things you want is the same as `discard` with a predicate that's `FALSE` for things you want.
+
+I'd say use whichever best describes your intention:
+Sometimes your intention will be something like "keep all the items that satisfy a condition" and sometimes it will be "get rid of all the items with this characteristic".
+
+### Crossing and Outer products
+
+Outer products or Cartesian products are great in a situation where you want to match every item in a list with every item in another list.
+
+For example, we can make a multiplication table using `cross`:
+
+```{r}
+product <- function(l) {
+  l$left * l$right
+}
+
+cross(list(left = 1:10,
+           right = 1:10)) %>%
+  map(product) %>%
+  matrix(nrow = 10, ncol = 10)
+```
+
+- `cross` does the matching between pairs, giving us back a list of all pairings
+- `map` is then used to apply a function that multiplies the two elements of a list together
+- then we make it into a matrix using `matrix`
+
+There are quite a few instances when `cross` (or the related function `crossing()` from {tidyr}) is useful for making grids to search over an n-dimensional parameter space.
+Or if you have a function of two variables that you want to show as a surface plot, you can generate all the (x,y) coordinate pairs using `cross`.
+
+### Lifting domains of functions
+
+In R there are three common ways to accept inputs into a function:
+
+- Named arguments, e.g. `f(arg1 = 1, arg2 = 2, arg3 = 3)` (which also covers `...`)  (type `d`)
+- As a list e.g. `f(list(1,2,3))` (type `v`)
+- As a vector e.g. `f(c(1,2,3))` (type `c`)
+
+The `lift*` family provide wrapping functions that translate functions that take arguments a certain way into functions that take arguments another way.
+
+The `lift` family has a number of functions that are named like `lift_xy`.
+This will take a function that accepts arguments the way of `x` and returns a function that accepts arguments the way of `y`.
+`x` and `y` can take any (different) values from `d`, `v` and `c`.
+For example, `lift_dv()`.
+
+This is useful when you have data structured one way, but need to use a function that takes arguments in a different way.
+One option would be to transform your data to match your function, but that could be hard. 
+It may be easier to transform your function to match your data.
+
+As an example, let's say we have data that is structured as a nested list:
+
+```{r}
+my_data <- list(
+  list(number = 1, text = "This is number one"),
+  list(number = 2, text = "This is number two"),
+  list(number = 100, text = "This is number 100")
+)
+```
+
+Then we have a function that takes named arguments:
+
+```{r}
+my_describer <- function(number, text) {
+  paste(number, ":", text)
+}
+```
+
+We can write code like:
+
+```{r}
+my_describer(number = 10, text = "Hello ten")
+```
+So we might try to `map` over our data:
+
+```{r error=TRUE}
+map(my_data, my_describer)
+```
+
+And we get the error because `my_describer` expects two arguments and we've only given it one (the second-level list in `my_data`).
+
+We note that our function takes named values but we want to apply it to a list, so we can `lift` the domain of the function to lists using `lift_dl`.
+
+```{r}
+map(my_data, lift_dl(my_describer))
+```
+
+
+This can useful for composing functions together into larger chains when the output of one function may produce a list, but the next function in a chain expects named arguments.
+
+### Partial Application
+
+Partial Application is the process of taking a function of $n$ variables, filling in $k<n$ of them and getting a new function out the end that takes the remaining $n-k$ variables.
+
+More concretely, say we have a function defined as so:
+
+```{r}
+combine_three <- function(x, y, z) {
+  paste0(x, ", ", y, ", and ", z)
+}
+
+combine_three("apples", "oranges", "pears")
+```
+
+which takes three values. 
+
+We can make a new function that is a version of this function but has two variables fixed. 
+There's a verbose, obvious way and a {purrr} way:
+
+```{r}
+verbose_way <- function(z) {
+  combine_three(x = "apples", "oranges", z)
+}
+verbose_way("elephants")
+
+purrr_way <- partial(combine_three,
+                     x = "apples",
+                     y = "pears")
+purrr_way("mice")
+```
+These produce (basically) the same thing, but the version made with `partial`, I think, shows intention more clearly; the verbose way is the nuts and bolts of defining a totally new function and you only understand by reading the full definition that we are doing partial application, whereas in the {purrr} way, you know this going in when you read `partial`.
+
+Code that shows its intention clearly is better code.
+
+I use this when there's a function from a package that has a great many options and I know that for a certain use case I want to fill some of those in and 'set' them in advance.
+
+It works on any function, so that `add_100` function from before could be defined as:
+
+```{r}
+add_100 <- partial(`+`, 100)
+```
+
+
+### `compose`
+
+With the popularity of the tidyverse many R programmers have got used to piping data through multiple functions.
+So much so that R4.1 introduced the native pipe, `|>`.
+But these still take need some data in the front^[While you *can* make a pipeline open at the start using the dot: `. %>% function()`, it's not quite the same as function composition as you still have that dot pretending to be data].
+
+Often in full functional languages like Haskell, we will make new functions out of smaller functions without even referencing the inputs.
+This "[point-free](https://en.wikipedia.org/wiki/Tacit_programming)" style *can* lead to more expressive and clearer code.
+
+This is done through **composition** of functions.
+
+In mathematics if we have a function $f : x \to y$ and a function $g: y\to z$ (here $x$, $y$ and $z$ just denote the domains of the functions), we can make a new function $g \circ f : x \to z$, read "g after f", that is a function in its own right. It defines a mapping that is the same as doing $f$, then doing $g$ to the result, i.e. $(g \circ f)(x) = g(f(x))$ with some input $x$. 
+
+Note how we had to introduce an input in the final definition there, whereas before this we were just talking about functions in an abstract way without considering specific inputs.
+
+It turns out we can do the same thing with R code to take a handful of simple functions and build them up to something larger.
+
+So let's built a function that will
+
+- take a string of numbers, e.g. "1 2 3 4 5"
+- split the string by spaces
+- convert the list of strings into a list of numbers
+- add 100 to each number
+- keep only those greater than 103 
+- return the product
+
+By writing out the steps, we essentially list the simple functions we will need to compose.
+
+```{r}
+# take the very first element of a list
+take_first <- function(l) {
+  l[[1]]
+}
+
+# Predicate function, TRUE only if input  is larger than 103
+greater_than_103 <- function(x) {
+  x > 103
+}
+
+fancy_pipeline <-
+  compose(
+    partial(stringr::str_split, pattern = " "),
+    take_first,
+    as.numeric,
+    add_100,
+    partial(keep, .p=greater_than_103),
+    prod,
+    .dir = "forward"
+  )
+```
+
+We've used `partial` a couple of times to partially apply some of the functions we have defined.
+But overall, this expresses our process clearly as a series of steps.
+By specifying `.dir = "forward"` we override the default 'mathematical' order for defining the steps and can input them in the order that they touch the data.
+
+On an input string "1 2 3 4 5", this will produce `r c(101, 102, 103, 104, 105)`, which will be filtered down into `r c(104, 105)`, the product of which is 10920. 
+We can use our function to get the same answer:
+
+```{r}
+fancy_pipeline("1 2 3 4 5")
+```
+If we look at the function, we can still see how it was made:
+
+```{r}
+fancy_pipeline
+```
+Functional composition lets us define large functions from smaller (simpler and therefore easier to test) sub-functions and be explicit about how the larger functions are constructed.
+
+## Conclusion
+
+While `map` is still my most commonly used function from {purrr}, looking in more detail at the offerings of the package has been fascinating. 
+I've only covered a few items here, so I would recommend the reader look more at the purrr NAMESPACE and see what else it has to offer.
+
+There's a whole lot of benefits to adopting a functional style including clearer and more expressive code that's easier to test.
+While R still has a lot of distance to cover to catch up to Haskell (and it's not trying to anyway), you can still adopt an FP style in your R code either with base or with {purrr}. I'm certainly going to continue looking for opportunities to simplify my code using `lift`s or `partial` or bolstering my `maps` using `possibly` or `safely`.

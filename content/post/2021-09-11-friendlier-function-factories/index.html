@@ -2,9 +2,9 @@
 title: Friendlier Function Factories
 author: Michael
 date: '2021-09-11'
+tags:
+  - r
 slug: friendlier-function-factories
-categories: []
-tags: [r]
 ---
 
 <script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
@@ -70,7 +70,7 @@ For example, want to see the code for <code>read.csv</code>? Simply evaluate <co
 ##     fill = TRUE, comment.char = &quot;&quot;, ...) 
 ## read.table(file = file, header = header, sep = sep, quote = quote, 
 ##     dec = dec, fill = fill, comment.char = comment.char, ...)
-## &lt;bytecode: 0x561f4948b070&gt;
+## &lt;bytecode: 0x55a1bcb1f818&gt;
 ## &lt;environment: namespace:utils&gt;</code></pre>
 <p>From that, we can see that <code>read.csv</code> actually calls <code>read.table</code> with some pre-defined arguments.</p>
 <p>But what do we get if we try that with the output from the functions we’ve received from the factory?</p>
@@ -78,8 +78,8 @@ For example, want to see the code for <code>read.csv</code>? Simply evaluate <co
 <pre><code>## function(n) {
 ##     n + x
 ##   }
-## &lt;bytecode: 0x561f47cdd930&gt;
-## &lt;environment: 0x561f49803690&gt;</code></pre>
+## &lt;bytecode: 0x55a1bb372148&gt;
+## &lt;environment: 0x55a1bce97d90&gt;</code></pre>
 <p>We see that <code>add100</code> takes an <code>n</code>, but the definition shown here doesn’t specify what <code>x</code> is.
 If we didn’t know that <code>add100</code> came from the <code>adder</code> function factory (and if we had named it less descriptively) we would have no idea what <code>x</code> is just from looking at the definition.</p>
 <p>There is one simple thing we can do though: Every function carries a reference to it’s enclosing environment, so we can find out what <code>x</code> is like so:</p>
@@ -194,7 +194,7 @@ add100(10)</code></pre>
 ## {
 ##     n + 100
 ## }
-## &lt;environment: 0x561f4bb17480&gt;</code></pre>
+## &lt;environment: 0x55a1bf1a72c8&gt;</code></pre>
 <p>There we have it, we can still get the value of <code>x</code> in the environment of <code>add100</code> as we did before, but now we also have a transparent version of <code>add100</code> that looks exactly as if we made a hand-crafted version:</p>
 <pre class="r"><code>hand_crafted_add100 &lt;- function(n) {
   n + 100

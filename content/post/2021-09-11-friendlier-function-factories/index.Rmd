@@ -2,9 +2,9 @@
 title: Friendlier Function Factories
 author: Michael
 date: '2021-09-11'
+tags:
+  - r
 slug: friendlier-function-factories
-categories: []
-tags: [r]
 ---
 
 # Overview
