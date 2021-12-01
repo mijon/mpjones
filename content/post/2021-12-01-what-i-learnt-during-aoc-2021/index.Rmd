@@ -1,0 +1,57 @@
+---
+title: What I learnt during AoC 2021
+author: Michael
+date: '2021-12-01'
+slug: what-i-learnt-during-aoc-2021
+categories: []
+tags: []
+draft: true
+---
+
+# Introduction
+
+[Advent of Code](https://adventofcode.com/) happened during December.
+This post covers things I learnt over the course of the month.
+
+# Day 1
+
+## R
+
+I had never heard of the `diff` function before. 
+I wrote my own, but there was a perfect function right in {base}.
+Clearly I need to explore {base} more and rely on {tidyverse} a little less.
+For example, my solution is [here](https://github.com/mijon/AoC2021/blob/main/R/day_1.R), but [this](https://github.com/EmilHvitfeldt/rstats-adventofcode/blob/master/2021/01-1.R) solution from [Emil Hvitfeldt](https://twitter.com/Emil_Hvitfeldt/) exemplifies how simple the R solution can be.
+
+I also never heard about the {slider} package.
+Perfect for the rolling sum needed for part 2.
+
+## APL
+
+I struggled to hack together something for APL using a mix of rotates and reduces.
+I did not know about windowed reduces.
+I didn't come up with this solution, but isn't it beautiful, with our values in an array `d` we solve part 1 with just:
+
+```
++/2</d
+```
+
+Reading from the right, `2</d` does a length-2 windowed reduce on our array `d` using the `<` function (less than, surprisingly when it comes to APL, this is the same as in other languages).
+
+On the sample data, this produces:
+
+```
+2</sample_data
+  1 1 1 0 1 1 1 0 1
+```
+
+i.e. a 1 (true in APL) whenever the right of the pair is less than the left.
+
+Then we just need to sum that using a normal plus-reduce, `+/`.
+
+The extension to the third problem is just to add another windowed reduce:
+
+```
++/2</3+/d
+```
+
+I'm still terrible at APL, but I like it's terseness. 

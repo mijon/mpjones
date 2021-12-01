@@ -1,0 +1,46 @@
+---
+title: What I learnt during AoC 2021
+author: Michael
+date: '2021-12-01'
+slug: what-i-learnt-during-aoc-2021
+categories: []
+tags: []
+draft: true
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p><a href="https://adventofcode.com/">Advent of Code</a> happened during December.
+This post covers things I learnt over the course of the month.</p>
+</div>
+<div id="day-1" class="section level1">
+<h1>Day 1</h1>
+<div id="r" class="section level2">
+<h2>R</h2>
+<p>I had never heard of the <code>diff</code> function before.
+I wrote my own, but there was a perfect function right in {base}.
+Clearly I need to explore {base} more and rely on {tidyverse} a little less.
+For example, my solution is <a href="https://github.com/mijon/AoC2021/blob/main/R/day_1.R">here</a>, but <a href="https://github.com/EmilHvitfeldt/rstats-adventofcode/blob/master/2021/01-1.R">this</a> solution from <a href="https://twitter.com/Emil_Hvitfeldt/">Emil Hvitfeldt</a> exemplifies how simple the R solution can be.</p>
+<p>I also never heard about the {slider} package.
+Perfect for the rolling sum needed for part 2.</p>
+</div>
+<div id="apl" class="section level2">
+<h2>APL</h2>
+<p>I struggled to hack together something for APL using a mix of rotates and reduces.
+I did not know about windowed reduces.
+I didn’t come up with this solution, but isn’t it beautiful, with our values in an array <code>d</code> we solve part 1 with just:</p>
+<pre><code>+/2&lt;/d</code></pre>
+<p>Reading from the right, <code>2&lt;/d</code> does a length-2 windowed reduce on our array <code>d</code> using the <code>&lt;</code> function (less than, surprisingly when it comes to APL, this is the same as in other languages).</p>
+<p>On the sample data, this produces:</p>
+<pre><code>2&lt;/sample_data
+  1 1 1 0 1 1 1 0 1</code></pre>
+<p>i.e. a 1 (true in APL) whenever the right of the pair is less than the left.</p>
+<p>Then we just need to sum that using a normal plus-reduce, <code>+/</code>.</p>
+<p>The extension to the third problem is just to add another windowed reduce:</p>
+<pre><code>+/2&lt;/3+/d</code></pre>
+<p>I’m still terrible at APL, but I like it’s terseness.</p>
+</div>
+</div>
