@@ -1,0 +1,359 @@
+---
+title: Rock Paper Scissors in Haskell
+author: Michael
+date: '2022-02-01'
+slug: rock-paper-scissors-in-haskell
+categories:
+  - Haskell
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>As mentioned previously, I’ve been learning Haskell recently.
+I am by no means an expert; I think of myself as a pure beginner.
+Nevertheless, I think reading beginner’s gushing, rose-tinted enthusiasm for something can be a useful introduction to the subject.</p>
+<p>Maybe.
+I hope.</p>
+<p>I must be clear, what you are about to read probably isn’t best practice.
+I’ll almost certainly make mistakes that a more seasoned Haskeller would not.
+But I think it’s useful to learn from other beginners rather than experts sometimes because they haven’t forgotten what it’s like to be learning.</p>
+<p>And at the very least this isn’t another (obligatory?) <em>I’ve just learnt about monads, so here’s a blog post</em> blog post.<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+</div>
+<div id="what-is-haskell" class="section level1">
+<h1>What is Haskell</h1>
+<p>It’s a programming language that is:</p>
+<ul>
+<li>Functional (like R)</li>
+<li>Lazy (like R sort of)</li>
+<li>Statically typed (not like R)</li>
+<li>Compiled (not like R)</li>
+<li>Thoughtful about purity (not really like R)<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></li>
+</ul>
+<p>I think it’s a great language to learn if you come from an R background as it will show you all the functional ideas that R has, but in a much more concentrated package.
+R is functional-adjacent, Haskell is fully, unashamedly functional.</p>
+<p>That the language is geared around efficient use of functions is hinted at by the way functions are defined and applied.
+Let’s look at function definition and usage in both R and Haskell.
+We’ll write a simple function that takes two numbers and calculates the mean.</p>
+<p>In R, we use the <code>function</code> function to construct a new function<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a></p>
+<pre class="r"><code>mean_func &lt;- function(x, y) {
+(x + y) / 2
+}</code></pre>
+<p>In Haskell we give the function a name, state the arguments and then define what happens in the function after the <code>=</code> sign.</p>
+<pre class="haskell"><code>mean_func x y = (x + y) / 2</code></pre>
+<p>When it comes to applying the functions, in R we call the function by providing the arguments in parentheses after the name:</p>
+<pre class="r"><code>mean_func(10,20)</code></pre>
+<pre><code>## [1] 15</code></pre>
+<p>In Haskell, we just write the function name, and then the arguments after it (The <code>--</code> is how you make comments in Haskell):</p>
+<pre class="haskell"><code>meanfunc 10 20
+-- 15</code></pre>
+<p>There’s no clutter in writing or using Haskell functions.
+It might take a little while for your eyes to adjust to not seeing parentheses everywhere, but it’s worth the wait.</p>
+<p>The easiest way to get Haskell is to install <a href="https://www.haskell.org/ghc/">GHC</a> on your system.
+This is the “Glasgow Haskell Compiler”, which is the <em>de facto</em> standard Haskell implementation.</p>
+<p>Good places for beginners to start include:</p>
+<ul>
+<li><a href="http://www.learnyouahaskell.com/">Learn you a Haskell for Great Good</a></li>
+<li>Graham Hutton’s <a href="http://www.cs.nott.ac.uk/~pszgmh/pih.html">book</a> and <a href="https://www.youtube.com/c/GrahamHuttonNotts">YouTube lectures</a></li>
+<li>Will Kurt’s <a href="https://www.manning.com/books/get-programming-with-haskell">Get Programming With Haskell</a></li>
+</ul>
+<p>The first two I have read, the second is well recommended by another, slightly more advanced Haskell Book, <a href="https://www.manning.com/books/haskell-in-depth">Haskell in Depth</a></p>
+</div>
+<div id="a-haskell-key-feature" class="section level1">
+<h1>A Haskell Key Feature</h1>
+<p>Something that sets Haskell apart from R is the strong type system.
+We’re used to types in R like <code>character</code> or <code>numeric</code> vectors, <code>list</code>s and <code>matrix</code> etc.
+But R is a <em>very</em> dynamic language.
+Types can be changed into what we need them to be at the point we use them.
+This can be good for interactive statistical analyses, but it can make some confusing errors harder to spot.</p>
+<p>Haskell on the other hand is statically typed.
+Once something is a type, it will be that type.
+This may sound like a restriction, but like many creative things, constraints lead to interesting results.
+The compiler has a very sophisticated way to keep track of all your types leading to a common aphorism in Haskell that if a program compiles, then it will work: Generally, many errors in the program are picked up at compile-time meaning that your user doesn’t get surprised at run-time.</p>
+<p>It is also really easy to make your own types.
+I’m not going to go into the differences of <code>type</code>, <code>data</code> and <code>newtype</code>, but suffice to say, if we are modelling a particular system, we can usually model it very elegantly by just setting up the right types.</p>
+<p>Haskell also has <a href="https://en.wikipedia.org/wiki/Algebraic_data_type">Algebraic Data Types</a>.
+These let you build types out of other types, and makes defining restricted enumerations clear and simple.</p>
+<p>As a quick example of the latter, many languages define Booleans in a way that lets other types bleed into the boolean world.
+For example, in Python 0 is <code>False</code> and all other numbers are <code>True</code>.
+In Haskell, we can just make Boolean logic from new types and define their interactions, e.g. a function to perfor logical negation:</p>
+<pre class="haskell"><code>data Boolean = True | False
+
+not :: Boolean -&gt; Boolean
+not True = False
+not False = True</code></pre>
+<p>The first line defines the type called <code>Boolean</code>.
+It says that things (<code>data</code>) of type <code>Boolean</code> can be either <code>True</code> <strong>or</strong> <code>False</code>.
+The <code>|</code> pipe character taking on the familiar meaning of ‘or’.
+Here, <code>True</code> and <code>False</code> are data constructors, i.e. things that <em>create</em> a value of type <code>Boolean</code>.</p>
+<p>The second line is a <strong>type annotation</strong> or <strong>type signature</strong>.
+It sits above a function definition and describes what types the function acts on.
+Type signatures are so useful, often just looking at the type signature can give you a strong hint about what the function does.
+The compiler uses the type signature to make sure that you never try to pass the wrong types into your functions.
+In this case we’re defining logical not, so the type definition says we take a <code>Boolean</code> and output a <code>Boolean</code>.</p>
+<p>The third and fourth lines use <strong>pattern matching</strong> to fully define all possible incantations of the function.
+In this simple case we write code that basically says in English what logical negation does.
+We have given the compiler a list of definitions or example calls of the function that it can match against later.</p>
+</div>
+<div id="rock-paper-scissors" class="section level1">
+<h1>Rock Paper Scissors</h1>
+<p>This game, or a form of it, has been found in many cultures from as far back as the Chinese Han Dynasty<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.
+I’m sure you know the rules, but in case not:</p>
+<ol style="list-style-type: decimal">
+<li>The game is played between two players</li>
+<li>Each player chooses one of:
+<ul>
+<li>Rock: Traditionally indicated with a closed fist</li>
+<li>Paper: indicated with a flat hand</li>
+<li>Scissors: Indicated by fingers in a… scissor shape…</li>
+</ul></li>
+<li>On a count of three<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>, each player reveals their choice by making the appropriate hand gesture</li>
+<li>The winner is chosen as:
+<ul>
+<li>Paper beats Rock by wrapping around it</li>
+<li>Scissors beat Paper by cutting it</li>
+<li>Rock beats Scissors by bashing them</li>
+</ul></li>
+</ol>
+</div>
+<div id="getting-stuck-in" class="section level1">
+<h1>Getting Stuck In</h1>
+<div id="representing-moves" class="section level2">
+<h2>Representing Moves</h2>
+<p>A nice part of Haskell is the ability to use the type system to model your problem domain.
+This is generally called Domain Driven Design, and I can’t recommend enough <a href="https://www.youtube.com/watch?v=Up7LcbGZFuo">this</a> talk from <a href="https://fsharpforfunandprofit.com/">Scott Wlaschin</a> on the topic, bearing in mind that it’s in F#<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a> it gives a good survey of the main principles.</p>
+<p>By creating data types to model concepts in our problem domain, we can transform the vocabulary of our code away from the usual computer science concepts and into the concepts relevant for our problem.
+This is a powerful tool when it comes to working with non-programmers for whom you are writing an application:
+If you’re both using the same words to discuss the solution you’re more likely to get an end product that everyone is satisfied with.</p>
+<p>Turning to Rock Paper Scissors (“RPS” from now on), we <em>could</em> just store the chosen move in a String, e.g. in R, we could do:</p>
+<pre class="r"><code>move &lt;- &quot;Rock&quot;</code></pre>
+<p>But then we don’t get any safety features:</p>
+<pre class="r"><code>move &lt;- &quot;Run Away&quot;</code></pre>
+<p>is a legal string, but it’s not a legal move.</p>
+<p>In Haskell, we can solve this by creating a new data type, <code>Move</code>:</p>
+<pre class="haskell"><code>data Move = Rock | Paper | Scissors
+   deriving (Show, Eq, Enum, Bounded, Read)</code></pre>
+<p>Literally, this is saying “create a new data type called ‘Move’ that can <strong>only</strong> have values of ‘Rock’, ‘Paper’, and ‘Scissors’”.
+The items in parentheses after the <code>deriving</code> word are <strong>type classes</strong> our new data type is an instance of.
+I like to think of type classes (and I’m not 100% this is fully accurate or the best way) as collections of abstract behaviours, and all instances of the type class share implementations of these behaviours.</p>
+<p>To illustrate, let’s take the <code>Show</code> type class.
+All types that are instances of <code>Show</code> need to implement the function <code>show</code>.
+This is a function from that type to <code>String</code>, (<code>show :: Show a =&gt; a -&gt; String</code> in type signature parlance) i.e. it’s a way of getting a textual representation of the type.
+You can make any data type into an instance of <code>Show</code> by telling Haskell that it is, either by using <code>deriving</code> to get a sensible default implementation of the <code>show</code> function or by defining a separate <code>instance</code>.
+If you have a type <code>a</code> that’s an instance of <code>Show</code>, you know you can get a text representation out.
+This is the main idea behind type classes.</p>
+<p>There are type classes for all different types of behaviours, from ‘things that can be squashed together’, ‘things that can be sequenced’, ‘things that can be mapped over’ and so on.</p>
+<p>In our case, we create instances for:</p>
+<ul>
+<li><code>Show</code>: meaning that our <code>Move</code> type gets <code>String</code> representations as discussed above.
+Hopefully unsurprisingly, these will be <code>"Rock"</code>, <code>"Paper"</code>, and <code>"Scissors"</code>.</li>
+<li><code>Eq</code>: Things in <code>Eq</code> can be checked for <code>Eq</code>uality, i.e. is a <code>Paper</code> the same as a <code>Rock</code>? No.</li>
+<li><code>Enum</code>: Things in <code>Enum</code> can be enumerated, i.e. they have some sequential ordering (similar to R’s ordered factors, I guess, but at the type level).</li>
+<li><code>Bounded</code>: Is an extension of <code>Enum</code> that means we can talk about the <code>maxBound</code> or <code>minBound</code> of the type.</li>
+<li><code>Read</code>: Is the opposite of <code>Show</code> in that we can take a <code>String</code> and make a value of our type.</li>
+</ul>
+</div>
+<div id="representing-results-of-a-game" class="section level2">
+<h2>Representing Results of a game</h2>
+<p>We’ll also make types to represent the result of a single game.
+Again, we could model this just as a string (e.g. “Win”), especially as <em>we</em> control this part of the program not the user, but types also help us.
+In fact, when writing the first draft of this code, I forgot the possibility of a draw and it was the type system that made me realise.</p>
+<p>So we do much the same as we did with <code>Move</code>:</p>
+<pre class="haskell"><code>data Result = Lose | Draw | Win
+   deriving (Show, Eq)</code></pre>
+<p>I’ll note here, that our types don’t hold any information beyond what’s provided by their constructor.
+In Haskell, we can make types that do hold additional information, e.g. <code>data Temperature = Temperature Int</code> might be how we track temperatures: by holding an <code>Int</code> inside, but tagged as a <code>Temperature</code> type.
+And we can have types that are parameterised by other types, e.g. <code>data Mytype a</code> that only really becomes a proper type when we put a concrete type in the <code>a</code>.</p>
+</div>
+<div id="modeling-the-wins" class="section level2">
+<h2>Modeling the Wins</h2>
+<p>From the rules section, we know that each move wins against another move, but it also loses.
+But so far, we’ve made our <code>Move</code> class be an instance of <code>Enum</code>, in fact due to the defaults, we’ve set up the following ordering:</p>
+<pre class="haskell"><code>Rock &lt; Paper &lt; Scissors</code></pre>
+<p>We haven’t made it wrap around yet into the cycle that it should be.
+This next bit of code is probably overkill and we could make something simpler that does the same job, but where’s the fun in that?
+We will implement a type class that makes cyclic permutations, and make the <code>Move</code> type an <code>instance</code> of this type class.
+This code was taken wholesale from a chapter of <em>Haskell in Depth</em> that covered using the type system to model a radar dish turning around.</p>
+<p>Here’s the code:</p>
+<pre class="haskell"><code>class (Eq a, Enum a, Bounded a) =&gt; CyclicEnum a where
+  cpred :: a -&gt; a
+  cpred c 
+    | c == minBound = maxBound
+    | otherwise = pred c
+
+  csucc :: a -&gt; a
+  csucc c
+    | c == maxBound = minBound
+    | otherwise = succ c
+
+instance CyclicEnum Move
+</code></pre>
+<p>The first line creates a new class.
+We say that every instance of the class <code>CyclicEnum</code> needs to be an instance of <code>Eq</code>, <code>Enum</code>, and <code>Bounded</code> first.
+Then we define the two default implementations of some functions: <code>cpred</code> and <code>csucc</code>.
+The <code>c</code> stands for “cyclical”, and <code>pred</code> &amp; <code>succ</code> are short for “predecessor” and “successor”, i.e. “what came before” and “what comes after”.
+Our default implementations use <code>pred</code> and <code>succ</code>, which we know <em>will</em> be available since they are provided by instances of <code>Enum</code>, of which we’ve enforced our <code>a</code> must be an instance.</p>
+<p>In the function definitions we see type annotations, e.g. <code>cpred :: a -&gt; a</code> meaning the <code>cpred</code> function takes some value of the type and gives back a value of that type (note that in the <code>class</code> definition, we haven’t specified any particular instances, therefore we use the generic “<code>a</code>”).
+The definitions use guards, “<code>|</code>”, which are a way of doing conditional logic in pattern matching, read each line that starts with a guard as:</p>
+<pre><code>  | logical test = result of the function if the logical test passes</code></pre>
+<p>Each line gets tested in turn and the first to by satisfied is the result of that function.</p>
+<p>We use <code>minBound</code> and <code>maxBound</code> (which we know <strong>must</strong> be available as our generic <code>a</code> needs to be an instance of the <code>Bounded</code> type class) to get the “ends” of the enumeration so we can wrap around.</p>
+<p>The logic of the function essentially falls back onto the pre-existing <code>pred</code> and <code>succ</code> functions from <code>Enum</code>, apart from when we’re at the end of the <code>Enum</code> in which case we loop back to the other side.</p>
+<p>The very last line is us saying that the <code>Move</code> type is an instance of <code>CyclicEnum</code>.
+We <em>could</em> choose to redefine the way that <code>cpred</code> and <code>csucc</code> work on <code>CyclicEnum</code> here, but we choose not to.
+Doing nothing accepts the defaults.</p>
+</div>
+<div id="randomness-in-haskell" class="section level2">
+<h2>Randomness in Haskell</h2>
+<p>In R, due to its focus on statistics, it’s almost a <em>lesson 1</em> task to generate some random numbers using <code>rnorm()</code> or <code>runif()</code> or similar.
+However, due to its focus on purity, randomness in Haskell is a bit of a difficult topic.
+Generating random numbers is an inherently impure thing since you need to either read and update some state that exists outside the function or you need to carry around some state inside your funciton.
+Indeed, when generating random numbers from a function you <em>want</em> to be able to generate things differently each time, so your function <strong>cannot</strong> be memoised.</p>
+<p>We need randomness to make a computer player that’s not boring to play against.
+I am still getting my head around all the ways to generate randomness in Haskell, but here’s the code I used for the RPS game (again taken from <em>Haskell in Depth</em>):</p>
+<pre class="haskell"><code>import System.Random.Stateful
+
+instance UniformRange Move where
+  uniformRM (lo, hi) rng = do
+      res &lt;- uniformRM (fromEnum lo :: Int, fromEnum hi :: Int) rng
+      pure $ toEnum res
+
+instance Uniform Move where
+  uniformM rng = uniformRM (minBound, maxBound) rng
+
+uniformIO :: Uniform a =&gt; IO a
+uniformIO = getStdRandom uniform
+
+randomMove :: IO Move
+randomMove = uniformIO</code></pre>
+<p>The first line is how we get new functionality into our Haskell programs beyond what we get by default.
+It’s Haskell’s equivalent of Python’s <code>import</code>, or R’s <code>library()</code>.
+We load <code>System.Random.Stateful</code> to get the functions we need to generate random <code>Move</code>s.</p>
+<p>On the second line, we see again the usefulness of type classes in Haskell:
+The <code>UniformRange</code> type class provides the abstract behaviour of being able to be randomly drawn, hence if we want <code>Move</code> to be able to be randomly drawn, we need to make it an instance of this type class.
+And we see in this implementation, that we define how the function <code>uniformRM</code> that comes with <code>UniformRange</code> should be applied to <code>Move</code>s, by overwriting the default.
+I’m not going to go into the specifics of the function definition here, as it relies on some topics that are beyond the scope of this post.
+<code>UniformRange</code> allows drawing randomly from a type but between a <code>lo</code> and a <code>hi</code> point, i.e. drawing randomly from within a range.</p>
+<p>We also make <code>Move</code> and instance of <code>Uniform</code> so we don’t have to always specify the upper and lower bounds of our range.
+We can just take the full range.</p>
+<p>Then we make a function <code>UniformIO</code> that provides a way to draw a random <code>Move</code> <em>within the</em> <code>IO</code> <em>computational context</em>.
+That’s really all monads are: computational contexts.
+Later on, since we want to tell the player what the computer picked we will have to be in the <code>IO</code> context anyway, so we’re all good.
+From the type signature, we see that <code>uniformIO</code> takes an <code>a</code> that is an instance of the <code>Uniform</code> type class and returns the <code>a</code> inside the <code>IO</code> context.</p>
+<p><code>UniformIO</code> is really generic though, since it takes any type <code>a</code> that is an instance of <code>Uniform</code>.
+So we make a value (not a function, since there’s no <code>-&gt;</code> in the type signature) that’s specific to the <code>Move</code> class by defining <code>randomMove</code>.
+Note how we just tell Haskell that to get a random <code>Move</code> with <code>randomMove</code>, we need to use the <code>uniformIO</code> function.
+You make ask, “how does Haskell use just the function name ‘<code>uniformIO</code>’ to know that we want a <code>Move</code>?”
+That’s the power of the type signature!
+We’ve already told Haskell that the value of <code>randomMove</code> is <code>IO Move</code>, so whatever the function body does, it <em>has</em> to result in a value of <code>Move</code> in the <code>IO</code> context.</p>
+</div>
+<div id="actually-playing-the-game" class="section level2">
+<h2>Actually playing the game</h2>
+<p>So far we’ve just been building infrastructure.
+Now here’s the function that actually <em>plays</em> the game:</p>
+<pre class="haskell"><code>playGame :: Move -&gt; Move -&gt; Result
+playGame a b
+  | a == b = Draw
+  | a == cpred b = Lose
+  | a == csucc b = Win</code></pre>
+<p>That’s it.</p>
+<p>And I think that’s elegantly simple.
+It almost reads like plain English:</p>
+<ul>
+<li>to play the game, you take one <code>Move</code> and another <code>Move</code>, then you get the <code>Result</code> of the game.</li>
+<li>if the first <code>Move</code> matches the second <code>Move</code> (we know we can compare <code>Move</code>s since <code>Move</code> is an instance of <code>Eq</code>), then we have a <code>Draw</code></li>
+<li>if the first <code>Move</code> is “before” the second in our enumeration (allowing for wrapping since we’re using <code>cpred</code> from <code>CyclicEnum</code>), then the result is <code>Lose</code> for the first player</li>
+<li>if the first <code>Move</code> is “after” the second in the enumeration, then it’s a <code>Win</code> for the first player.</li>
+</ul>
+<p>We define a little helper function to tell the first player about their <code>Result</code>:</p>
+<pre class="haskell"><code>describeResult :: Result -&gt; String
+describeResult Win = &quot;You Win!&quot;
+describeResult Lose = &quot;Sadly, you lose&quot;
+describeResult Draw = &quot;It&#39;s a draw&quot;</code></pre>
+<p>This is a function that takes a <code>Result</code> and gives back a <code>String</code>.
+Then we use pattern matching to define what string in particular to give for each <code>Result</code>.
+Haskell will shout at us when we try to compile our program if we haven’t covered all values of <code>Result</code>.
+Another feature of the Haskell type system capturing potential errors at compile-time rather than letting them pop up in run-time.
+If our RPS program compiles, we <em>know</em> there is no case that our program can’t describe a <code>Result</code>.</p>
+</div>
+<div id="telling-the-player-whats-going-on" class="section level2">
+<h2>Telling the player what’s going on</h2>
+<p>And now, we come to the complex bit of beginner Haskell:
+Writing to the console.</p>
+<p>Recall that writing to the console is an impure action, so we know that we will have to do this in an <code>IO</code> context.</p>
+<p>We’re going to wrap all this handling in a <code>Main</code> function.
+This function will handle all the tasks of writing instructions to the user, reading their move, randomly drawing a move of its own, and writing the result to the console.
+Anything that can be done purely is handed off to pure functions such as <code>playGame</code> and <code>describeResult</code>.
+This, I understand, is how larger Haskell programs are structured: A pure core with an impure shell that’s as thin as possible.</p>
+<p>Here’s our <code>main</code>:</p>
+<pre class="haskell"><code>main :: IO ()
+main = do
+    putStrLn &quot;Your Choice: &quot;
+    choice &lt;- getLine
+    computer &lt;- randomMove
+    let
+       a = read choice
+       result = playGame a computer
+    putStrLn $ &quot;Computer Chose: &quot; &lt;&gt; show computer
+    putStrLn $ describeResult result</code></pre>
+<p>Again we have a type signature, in this case <code>IO ()</code>.
+<code>()</code> is a void type, our <code>main</code> doesn’t really <em>have</em> a type since it’s just processing input.</p>
+<p>Then we have a “<code>do</code> block”.
+I said this wasn’t a monad blog post, so we won’t go into this in much detail, but <code>do</code>-blocks are (one way) that Haskell code makes things happen in sequence.
+In fact, <code>&lt;-</code> isn’t assignment like <code>=</code> is, it’s defining an action that takes place in the <code>IO</code> context - details another time.
+We want this sequencing because we need the computer to ask for the player’s move before it tries to do anything with it (think about referential transparency again).</p>
+<p>The functions <code>putStrLn</code> and <code>getLine</code> write or read <code>String</code>s to/from the console.
+We spend a bit of time asking for input and getting it from the user, then we pick the computer’s move using <code>randomMove</code>.</p>
+<p>Next we use a <code>let</code> block where we say—just in the scope of the <code>let</code>—that <code>a</code> is the result of applying the <code>read</code> function to the <code>choice</code> we ready in from the user.
+Now, at this point, <code>choice</code> is a string, <code>read</code> is a function that takes a <code>String</code> to <em>some type</em>.
+Note how nowhere on that line do we tell Haskell that we want a value of type <code>Move</code>.
+Haskell is smart enough to figure out that we want a <code>Move</code> since we use <code>a</code> as an argument to the <code>playGame</code> function <em>that only works on</em> <code>Move</code>s.
+This is an example of very clever type inference.</p>
+<p>The penultimate line uses two bits of new syntax, the first is <code>$</code> which tells Haskell to evaluate everything to the right and then use that result as an argument to the left.
+It’s a neat way to avoid writing brackets, i.e.</p>
+<pre class="haskell"><code>-- This:
+function1 a (function2 b c)
+
+-- is the same as:
+function 1 a $ function2 b c</code></pre>
+<p>A bit neater perhaps.</p>
+<p>The second new bit of syntax is <code>&lt;&gt;</code>.
+This is an infix function.
+Infix functions should be very familiar to R programmers as, e.g. <code>%in%</code>, <code>%&gt;%</code> etc.
+The <code>&lt;&gt;</code> function concatenates strings.
+Well that’s not the whole truth: really it’s the append function for all instances of <code>Semigroup</code>, but that’s a (really cool) story for another time.</p>
+</div>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>That’s actually the first “program” I’ve written in Haskell.
+I’ve done a few Project Euler problems, and a few Advent of Code days, but this was the first time I decided on something to model and wrote the code.</p>
+<p>I like this example as it covers a few things, namely:</p>
+<ul>
+<li>Designing with types that fit the problem domain</li>
+<li>Using some type classes</li>
+<li>Using the <code>IO</code> monad to interact with the user.</li>
+</ul>
+<p>I’m going to keep learning Haskell as I see the benefits are:</p>
+<ul>
+<li>A stronger understanding of FP</li>
+<li>A better acknowledgement of the limitations of my daily tools, e.g. Strong typing in R would be <em>really</em> useful sometimes.</li>
+<li>It’s always fund to learn something new</li>
+</ul>
+<p>I hope you enjoyed this beginner Haskell piece, I’ll definitely be writing more in the future.
+In the mean time, I hearilty recommend the beginner resources I’ve listed above if this has interested you in Haskell programming.</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>It’s a <em>I’m not ready to write a monads blog post blog post</em>…<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>“purity” really means writing code without side effects which would be things like reading/writing files. Haskell code generally defines a boundary between a pure core of a program and an impure edge that interacts with the world. Pure functions are ones that could be easily memoised. R as a language isn’t really concerned with purity, but writing many pure functions and a few impure ones makes R code easier to reason about<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Sorry, this is my favourite way to explain making functions in R, but it is the worst way to do it from a teaching point of view, I just like the words.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>At least, according to <a href="https://en.wikipedia.org/wiki/Rock_paper_scissors#History">Wikipedia</a><a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>or just after the count of three - important to agree that before playing<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>Honestly, I’d recommend the talk just for people looking for advice on how to present, Wlaschin is a captivating speaker<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
