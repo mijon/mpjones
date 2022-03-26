@@ -55,3 +55,29 @@ The extension to the third problem is just to add another windowed reduce:
 ```
 
 I'm still terrible at APL, but I like it's terseness. 
+
+## Day 2
+
+### Haskell
+
+I've been wanting to learn more about parsing in Haskell since I read the Monadic Parsing chapter of Graham Hutton's book.
+Reading and following along only gives you so much you have to apply what you learnt to your own problem.
+
+I also found [this](https://two-wrongs.com/parser-combinators-parsing-for-haskell-beginners.html) tutorial online and it really helped. 
+I ended up modelling my solution after this tutorial rather than Hutton's book as that was the code I had up when I was working on the problem.
+
+My approach on this problem was definitely overkill. 
+One could have made a far simpler solution, but that's not what I'm using these problems for.
+
+I also used the record syntax to make a specific data type for the instructions.
+These work quite like python dictionarys or R's names lists, but you get a functional accessor for free, so with something like:
+
+```haskell
+data Record :: Record 
+  { item1 :: Int
+  , item2 :: String
+  }
+```
+
+we get a *function* `item1 :: Record -> Int` that we can use to get that specific value out from the record.
+Very useful.

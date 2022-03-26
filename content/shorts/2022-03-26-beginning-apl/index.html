@@ -1,0 +1,43 @@
+---
+title: Beginning APL
+author: Michael
+date: '2022-03-26'
+slug: beginning-apl
+categories:
+  - APL
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="checking-for-palindromes" class="section level1">
+<h1>Checking for Palindromes</h1>
+<p>APL is an old language, and it’s very different from most other languages.
+It’s an array language: you’re manipulating <em>blocks</em> of data rather than stepping over parts of that block.
+Think in a similar way to how R is vectorised.</p>
+<p>One thing it’s known for is its very terse ways to solve problems.
+I’m just brushing the surface at the moment but I wanted to share a well known example of APL code to show how powerful it can be.
+I hope to write more about APL later, but for now here’s how you can check whether a string is a palindrome:</p>
+<pre class="apl"><code>⌽≡⊢</code></pre>
+<p>That’s it.
+Three glyphs.</p>
+<p>In use, this is what it looks like:</p>
+<pre class="apl"><code>      (⌽≡⊢)&#39;racecar&#39;
+1
+      (⌽≡⊢)&#39;risetovotesir&#39;
+1
+      (⌽≡⊢)&#39;thisisnotapalindrome&#39;
+0</code></pre>
+<p>(Boolean True/False in APL is shown by 1 or 0).</p>
+<p>When you break it down, it’s really simple:</p>
+<ul>
+<li><code>⌽</code> reverses an array, e.g. if you have an array of <code>1 2 3</code>, <code>⌽1 2 3</code> gives you <code>3 2 1</code>.</li>
+<li><code>≡</code> checks whether two arrays are the same, <code>1 2 3≡1 2 3</code> would give you <code>1</code> (i.e true), <code>1 2 3≡3 4 5</code> would five you 0 (false).</li>
+<li><code>⊢</code> just returns the argument on the right.</li>
+</ul>
+<p>The arrangement of these glyphs uses what’s called a “fork”.
+Essentially when you have three functions in a row acting on some value <code>⍵</code>, i.e. <code>(fgh)⍵</code>, this expands to <code>(f⍵)g(h⍵)</code>.</p>
+<p>In our case, we end up with <code>(⌽⍵)≡(⊢⍵)</code> which is equivalent to <code>(⌽⍵)≡(⍵)</code>, or in English, “is the reverse of this array equal to the array itself?”.</p>
+<p>Wonderful.</p>
+</div>

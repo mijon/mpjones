@@ -1,0 +1,52 @@
+---
+title: Beginning APL
+author: Michael
+date: '2022-03-26'
+slug: beginning-apl
+categories:
+  - APL
+tags: []
+---
+
+# Checking for Palindromes
+
+APL is an old language, and it's very different from most other languages.
+It's an array language: you're manipulating *blocks* of data rather than stepping over parts of that block.
+Think in a similar way to how R is vectorised.
+
+One thing it's known for is its very terse ways to solve problems. 
+I'm just brushing the surface at the moment but I wanted to share a well known example of APL code to show how powerful it can be.
+I hope to write more about APL later, but for now here's how you can check whether a string is a palindrome:
+
+```apl
+⌽≡⊢
+```
+
+That's it. 
+Three glyphs.
+
+In use, this is what it looks like:
+
+```apl
+      (⌽≡⊢)'racecar'
+1
+      (⌽≡⊢)'risetovotesir'
+1
+      (⌽≡⊢)'thisisnotapalindrome'
+0
+```
+
+(Boolean True/False in APL is shown by 1 or 0).
+
+When you break it down, it's really simple:
+
+- `⌽` reverses an array, e.g. if you have an array of `1 2 3`, `⌽1 2 3` gives you `3 2 1`.
+- `≡` checks whether two arrays are the same, `1 2 3≡1 2 3` would give you `1` (i.e true), `1 2 3≡3 4 5` would five you 0 (false).
+- `⊢` just returns the argument on the right.
+
+The arrangement of these glyphs uses what's called a "fork".
+Essentially when you have three functions in a row acting on some value `⍵`, i.e. `(fgh)⍵`, this expands to `(f⍵)g(h⍵)`.
+
+In our case, we end up with `(⌽⍵)≡(⊢⍵)` which is equivalent to  `(⌽⍵)≡(⍵)`, or in English, "is the reverse of this array equal to the array itself?". 
+
+Wonderful.
