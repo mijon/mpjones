@@ -1,0 +1,414 @@
+---
+title: Using S3 to write generic code
+author: Michael
+date: '2022-04-05'
+slug: using-s3-to-write-generic-code
+categories:
+  - r
+tags: []
+---
+
+
+# Introduction
+
+There's a certain joy that comes with having systems and tools work well.
+I know: It's not really about the tools, it's about what you make with the tools.
+But still, there's a reason that a woodworker will make so many 'shop projects', a reason that machinist will construct so many of their own tools.
+When you tinker with something, you develop an appreciation for incremental gains in tooling.
+
+This post is a little like that.
+
+# The Situation
+
+You have a process that can be well defined *in general terms*. 
+For example:
+
+- Load the data
+- Verify the data
+- Clean the data
+- Manipulate the data
+- Write to the correct database table
+
+**But** you need to do the same process to several different types of data. 
+Perhaps you have files that are of slightly different formats that each need their own specific treatments.
+Perhaps the ultimate destination of the data is slightly different depending on certain aspects of the data.
+
+You need to build a way to manage all these different considerations when setting up your process.
+
+There are many ways to do this, and I'll cover a few below, but the one I've been using the most recently is by allowing R's S3 object model to do all the routing for me.
+
+# My Examples
+
+I have two examples that I'm using this technique for at the moment.
+
+1. An analysis that involves reading around 10 different data sets that all represent the same sort of thing (specifically policy and claims information for an insurance company), but each of the ten sets all come from a different source^[The insurance company operates under what's called a "binder" or "binding agreement" whereby they let some other entity sell and manage policies on their behalf but they are the ones actually doing the insurance and so are entitled to detailed data. Each data set is from a different binder, hence a totally different style].
+  I want to end up doing the same set of general steps to each data set but the specifics are different.
+2. A different analysis, this time dealing with two types of datasets from each of three different sources. 
+  The data represents either snap shot views of an insurance company's portfolio of lives, or movement data between two points (which policies have been opened, lapsed, or closed and at what date).   
+  Again, the format of the files is different for each provider, but I'm going to be doing something similar to each type of file regardless of which provider it comes from.
+  
+In both of these examples I want to be able to control the *details* of what each processing step involves for each type of file separately from controlling the way each step fits together.
+
+I want to deal with my program at two distinct levels:
+
+1. The nitty-gritty details of reading and transforming specific sets ("tree mode")
+2. The higher-level overview of the process as a whole ("forest mode")
+
+
+# The most basic solution
+
+The most basic thing is just to write different functions for different pieces. 
+If there's any overlap, you can use the same function, but when you've got something specific, just make it specific.
+
+As an example, let's say that we're dealing with the first scenario above.
+But let's limit ourselves to three different providers, "A", "B", and "C".
+
+We need to make:
+
+- Data loading functions for all three types (because they are all slightly different formats)
+- Data verification functions for all three types (again, different formats mean different things to verify)
+- Data manipulation functions.
+- Overall process management
+
+We could do the following:
+
+```{r eval=FALSE}
+load_type_A <- function(filepath) {
+  readr::read_csv(filepath, col_types = cols(...))
+}
+
+load_type_B <- function(filepath) {
+  readr::read_csv(filepath, col_types = cols(...)) # but different column types
+}
+
+load_type_C <- function(filepath) {
+  readxl::read_xlsx(filepath) # Maybe this one always comes in .xlsx
+}
+
+verify_type_A <- function(df) {
+  # specific verification steps
+  # perhaps we use {checkmate}, {pointblank}, or {assertr} or something
+}
+
+verify_type_B <- function(df) {
+  # Same idea, but different steps
+}
+
+# ... and so on
+```
+
+Then when it comes to our processing we might have a processing function for each type:
+
+```{r eval=FALSE}
+process_type_A <- function(filepath) {
+  load_type_A(filepath) |>
+    verify_type_A() |>
+    manipulate_type_A() |>
+    store_type_A()
+}
+
+process_type_B <- function(filepath) {
+  load_type_B(filepath) |>
+    verify_type_B() |>
+    manipulate_type_B() |>
+    store_type_B()
+}
+
+process_type_C <- function(filepath) {
+  load_type_C(filepath) |>
+    verify_type_C() |>
+    manipulate_type_C() |>
+    store_type_C()
+}
+```
+
+Great! 
+
+But what if we need to change something about the processing.
+We've already said we want to do the *same general thing* to each file, so if we want to change the process, we need to change three things^[recall, I have near ten things in my actual situation].
+
+Or if we want to add another type, then we'd have to write a whole new set of functions.
+
+What if our new type was basically exactly the same as "C", but just needed a tweak to the verification step?
+
+# Option 2: Loads of `if`s
+
+Here we write code that handles our options for us.
+We have some overview process and then handle the specifics with conditionals:
+
+```{r, eval=FALSE}
+my_process <- function(filepath, type) {
+  # load 
+  
+  if (type == "A") {
+    data <- load_type_A(filepath)
+  } else if (type == "B") {
+    data <- load_type_B(filepath)
+  } else {
+    # ...etc
+  }
+  
+  # verify
+  if (type == "A") {
+    verified_data <- verify_type_A(data)
+  } else {
+    # ...etc
+  }
+  
+  # ...etc (rest of process)
+}
+```
+
+This would mean that we can just load all our files into a single data structure and map or loop over them, e.g.
+
+```{r, eval=FALSE}
+my_data <-
+  tibble(filepath = c("file1", "file2", "file3", "file4"),
+         types = c("A", "B", "A", "C"))
+
+my_results <- purrr::walk2(
+  my_data$filepath,
+  my_data$type,
+  my_process
+)
+```
+
+This solves our interface at a user level, i.e. the user just has to say where the file is and what type it is, and then always calls the same `my_process()` function.
+Nice and easy for them.
+
+However, dealing with loads of `if`s swiftly becomes tedious.
+So much of our code will be the conditional scaffolding that it will be easy to lose track of where the right place to make changes is.
+It makes for code that's a little more verbose than we want, and since it's all just `if` conditionals, then it makes things a little more fragile.
+
+# My S3 Solution
+
+Essentially what we've been trying to achieve so far is building a system that will work a little bit like a dispatcher at at taxi company (bear with me).
+Calls come in to the central office, and the dispatcher routes jobs out to the correct taxi driver. 
+
+Only so far, we've been making the drivers handle the dispatching.
+The functions we've written do both the job of running the process, but also the job of managing what type of object they are working on. 
+Whether this is in the first instance where we've explicitly tagged each function name with the right type, or in the second example where we've had to embed the decision logic right in with the process logic.
+
+In the taxi office example, the dispatcher is responsible for sending jobs where they need to go, but doesn't need to actually drive anywhere. 
+And the drivers just need to deal with their own passengers and not with routing jobs.
+
+The S3 object system allows us to build some infrastructure to do just this.
+
+## Crash Course in S3
+
+In short, S3 is what lets you call `summary()` on a linear model and get suitable output **that's different** from what you get if you call `summary()` on a data.frame.
+In a way, `summary()` is smart enough to know that when you call it on a linear model, you want some specific action that relates to linear models and not data.frames.
+
+R achieves this by having linear models, data.frames and many other things be assigned one or more **classes**.
+
+The `summary()` function is what's called a **generic** function.
+I.e. a function that is written to be applied *generically* to many different types of things.
+
+When you call `summary()` on a linear model, R will check what **class** your linear model is, e.g.
+
+```{r}
+my_model <- lm(mpg ~ hp, data = mtcars)
+
+class(my_model)
+```
+R knows that `my_model` is of the "lm" class.
+
+R then calls a **method** of the `summary()` generic that is specific to the class "`lm`", namely, `summary.lm()`.
+There's loads of other methods, e.g. `summary.data.frame()`.
+The naming convention is `generic.class()`.
+
+S3 dispatch is what is going to handle our data flow.
+
+## Making a Generic
+
+Back to our three type example.
+
+Let's start by designing at the forest level. 
+We want our process to be something like:
+
+```{r eval=FALSE}
+process <- function(binder_data) {
+  load(binder_data) |>
+    verify() |>
+    manipulate() |>
+    store()
+}
+```
+
+Note that this (superficially) looks almost exactly the same as our initial type-specific implementations, but we've taken out the "`_type_A`" suffixes to our functions.
+
+We will be able to do this, because each of these functions, `load()`, `verify()`, `manupulate()`, and `store()` won't be normal functions, but instead will be generics. 
+
+Before we proceed in fleshing out the specifics, we need to tell R that these are generics. 
+We do this using the following code:
+
+```{r}
+load <- function(x, ...) {
+  UseMethod("load")
+}
+
+# similar definitions for the others
+```
+
+Some key points:
+
+- the generic definitions don't include any implementation: that comes later when we implement the methods
+- the argument to `UseMethod` should match the name of the generic
+- the arguments included in the `function()` define the minimum set of arguments that each method should also accept.
+  It's common to include `...` in the arguments as then specific methods can accept more than this minimum set
+  
+  
+## One more peice of scaffolding
+
+I want a way to make a general abstract class that says an object is of the type that I want to process without nailing down *what* type it is.
+Let's stick with our prior example for which I want a general "`binder_data`" class that any binder data belongs to regardless of its type.
+
+Luckily S3 objects' class attribute can actually be a vector, e.g. `tibble()` makes tibble objects with the following class:
+
+```{r}
+class(tibble::tibble(mtcars))
+```
+Calling any generic on this object will make R first check to see whether there's a `tbl_df` method, if there is, then that method will be used, if there isn't, R will check whether there's a `tbl` method, failing that R will use the `data.frame` method.
+
+So we can use this feature to set up objects like:
+
+- `"A" "binder_data"`
+- `"B" "binder_data"`
+- `"C" "binder_data"`
+
+That is, three different classes that represent each type, but all of them are also of the "`binder_data`" class.
+We do this so we can have methods that work at the specific type level or functions that work on a general `binder_data` level for when we want to do the same thing to all types.
+
+We could make a constructor function like so:
+
+```{r}
+binder_data <- function(type, filepath) {
+  output <- list(
+    data = NULL,
+    filepath = filepath
+  )
+  
+  class(output) <- c(type, "binder_data", class(output))
+  output
+}
+```
+
+We do two main things here:
+
+1. construct a list called `output` in which to store both our data and our filepath information
+2. change the `output` list's class to be the type, "`binder_data`" and then whatever class it was before (in our case `list`).
+  This last bit makes R use whatever `list` methods exist where we haven't defined a `binder_data` method.
+  
+
+Now if we have a file path for a file that's of type A, we can set up the input to our process as so:
+
+```{r}
+example_file_1 <- binder_data("A", "path/to/file.csv")
+class(example_file_1)
+```
+And we can do similar for files of type "B" etc.
+
+Currently we've not made any limits on what the `type` argument could be and we'll discuss that later.
+
+## Our first method
+
+Now we have objects of class `binder_data` and type, we want to make some methods for these.
+
+For example, a `load` method. 
+Recall that we have already defined `load` as a generic. 
+We now need to make it work on objects of type "`A`", "`B`" etc.
+
+```{r}
+load.A <- function(x) {
+  x$data <- readr::read_csv(x$filepath)
+  x
+}
+```
+
+We know^[We don't technically know this for sure, as S3 is a very lose system, you can change the `class` of any object at runtime, and make R think something is whatever you tell it. Since R doesn't have private constructors as well, you can't know for sure that someone hasn't made hand-constructed something unexpected. But while your users *can* do this, most won't because they probably want to get work done. Bear that in mind when you're designing something and decide whether R/S3 is the right fit for the problem] that any object of type `A` has been made with `binder_data` and so has a `data` value and a `filepath` value.
+
+We can then make a `load` method for objects of type C:
+
+```{r}
+load.C <- function(x) {
+  x$data <- readxl::read_xlsx(x$filepath)
+  x
+}
+```
+
+We can do the same for all the other steps in the process and all the other types of file.
+
+By setting ourselves up with S3 classes, R will be handling all the dispatching of methods for us.
+
+## Organisation
+
+But this still makes a lot of code, but luckily it's fairly modular.
+We can also respect the two different levels of our processing.
+I'd recommend something like this file layout:
+
+- `processing.R` holds the definition of `process()` and anything else that's 'forest level'
+- `generics.R` holds the definition of all the generic functions like `load()` and `manipulate`, also holds the definition of `binder_data()`.
+- `methods_A.R` holds all the methods specific to the files of type A (a 'tree level' file)
+- `methods_B.R` holds all the methods specific to the files of type B
+- etc with a new file for each new file type
+
+This keeps our work nice and neat and makes it obvious where we need to make changes, e.g.:
+
+- if you want to change the flow of the overall process you change `processing.R`.
+- if you want to add a new file type, make a new `methods_x.R` file.
+
+## Dealing with the same action
+
+When you have a processing step that's the same across all file types, you don't need to copy and paste the same code for each type.
+i.e. you don't need to make `step.A()` and `step.B()` etc, if `step()` will be implemented the same for all types.
+
+Rather, just make a `step.binder_data()` and *this* method is the one that will be called regardless of the file types.
+That is, when you call `step()` on your object, R will look at your object of class `"A" "binder_data" "list"`.
+It will look for `step.A()` but it won't find any definition, and so it will then look for `step.binder_data()` and apply that.
+
+Now, say you have ten different file types and nine of them need the same processing but the tenth needs something special.
+Simple, just implement a `step.binder_data()` that has the common implementation and then make a `step.J()` for the tenth file type that's a problem.
+S3 dispatch will handle the rest.
+
+## What if someone tries to make an unexpected type?
+
+This also lets us handle the case when someone accidently makes a `binder_data` object with a type you haven't implemented yet.
+
+Say you have `load.A()`, `load.B()` and `load.C()` all implemented, because you think that covers the problem domain.
+But then someone comes along and runs:
+
+```{r}
+my_awkward_thing <- binder_data("D", "path/to/file.csv")
+```
+
+They won't be able to proceed since there is no `load.D()` and there is no `load.binder_data()`.
+
+If you're happy that the following error tells them all they need to know, then you don't need to do any more.
+The S3 dispatch infrastructure means that unexpected things are thrown out at an early enough opportunity.
+
+```{r, error=TRUE}
+load(my_awkward_thing)
+```
+But if you want to be a little more helpful, and there's no generic process that you want to apply to all `binder_data` objects, you could implement a fall back method that would be called on all `binder_data` objects with an unrecognised file type.
+For example:
+
+```{r error=TRUE}
+load.binder_data <- function(x) {
+  stop(paste0("`load` is not implemented for file types '", class(x)[[1]], "'"))
+}
+
+load(my_awkward_thing)
+```
+
+# Conclusion
+
+S3 may not be the best dispatch method for your job.
+It could either be overkill or even underpowered. 
+You might be fine with writting loads of different specific functions, and you may need the more constrained power of S4, or something available in a different language altogether.
+
+Nevertheless, I think that S3 is such a little step up developer learning that gives you massive gains in flexibility of your programming that it's worth a place in your toolbox.
+
+In my actual work examples.
+I've ended up following a similar framework and it's worked well. 
+It means that I've managed to keep the two layers of abstraction separate, have more modular code, and it's easier to understand how everything fits together.
+

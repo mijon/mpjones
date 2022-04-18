@@ -1,0 +1,340 @@
+---
+title: Using S3 to write generic code
+author: Michael
+date: '2022-04-05'
+slug: using-s3-to-write-generic-code
+categories:
+  - r
+tags: []
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>There’s a certain joy that comes with having systems and tools work well.
+I know: It’s not really about the tools, it’s about what you make with the tools.
+But still, there’s a reason that a woodworker will make so many ‘shop projects’, a reason that machinist will construct so many of their own tools.
+When you tinker with something, you develop an appreciation for incremental gains in tooling.</p>
+<p>This post is a little like that.</p>
+</div>
+<div id="the-situation" class="section level1">
+<h1>The Situation</h1>
+<p>You have a process that can be well defined <em>in general terms</em>.
+For example:</p>
+<ul>
+<li>Load the data</li>
+<li>Verify the data</li>
+<li>Clean the data</li>
+<li>Manipulate the data</li>
+<li>Write to the correct database table</li>
+</ul>
+<p><strong>But</strong> you need to do the same process to several different types of data.
+Perhaps you have files that are of slightly different formats that each need their own specific treatments.
+Perhaps the ultimate destination of the data is slightly different depending on certain aspects of the data.</p>
+<p>You need to build a way to manage all these different considerations when setting up your process.</p>
+<p>There are many ways to do this, and I’ll cover a few below, but the one I’ve been using the most recently is by allowing R’s S3 object model to do all the routing for me.</p>
+</div>
+<div id="my-examples" class="section level1">
+<h1>My Examples</h1>
+<p>I have two examples that I’m using this technique for at the moment.</p>
+<ol style="list-style-type: decimal">
+<li>An analysis that involves reading around 10 different data sets that all represent the same sort of thing (specifically policy and claims information for an insurance company), but each of the ten sets all come from a different source<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
+I want to end up doing the same set of general steps to each data set but the specifics are different.</li>
+<li>A different analysis, this time dealing with two types of datasets from each of three different sources.
+The data represents either snap shot views of an insurance company’s portfolio of lives, or movement data between two points (which policies have been opened, lapsed, or closed and at what date).<br />
+Again, the format of the files is different for each provider, but I’m going to be doing something similar to each type of file regardless of which provider it comes from.</li>
+</ol>
+<p>In both of these examples I want to be able to control the <em>details</em> of what each processing step involves for each type of file separately from controlling the way each step fits together.</p>
+<p>I want to deal with my program at two distinct levels:</p>
+<ol style="list-style-type: decimal">
+<li>The nitty-gritty details of reading and transforming specific sets (“tree mode”)</li>
+<li>The higher-level overview of the process as a whole (“forest mode”)</li>
+</ol>
+</div>
+<div id="the-most-basic-solution" class="section level1">
+<h1>The most basic solution</h1>
+<p>The most basic thing is just to write different functions for different pieces.
+If there’s any overlap, you can use the same function, but when you’ve got something specific, just make it specific.</p>
+<p>As an example, let’s say that we’re dealing with the first scenario above.
+But let’s limit ourselves to three different providers, “A”, “B”, and “C”.</p>
+<p>We need to make:</p>
+<ul>
+<li>Data loading functions for all three types (because they are all slightly different formats)</li>
+<li>Data verification functions for all three types (again, different formats mean different things to verify)</li>
+<li>Data manipulation functions.</li>
+<li>Overall process management</li>
+</ul>
+<p>We could do the following:</p>
+<pre class="r"><code>load_type_A &lt;- function(filepath) {
+  readr::read_csv(filepath, col_types = cols(...))
+}
+
+load_type_B &lt;- function(filepath) {
+  readr::read_csv(filepath, col_types = cols(...)) # but different column types
+}
+
+load_type_C &lt;- function(filepath) {
+  readxl::read_xlsx(filepath) # Maybe this one always comes in .xlsx
+}
+
+verify_type_A &lt;- function(df) {
+  # specific verification steps
+  # perhaps we use {checkmate}, {pointblank}, or {assertr} or something
+}
+
+verify_type_B &lt;- function(df) {
+  # Same idea, but different steps
+}
+
+# ... and so on</code></pre>
+<p>Then when it comes to our processing we might have a processing function for each type:</p>
+<pre class="r"><code>process_type_A &lt;- function(filepath) {
+  load_type_A(filepath) |&gt;
+    verify_type_A() |&gt;
+    manipulate_type_A() |&gt;
+    store_type_A()
+}
+
+process_type_B &lt;- function(filepath) {
+  load_type_B(filepath) |&gt;
+    verify_type_B() |&gt;
+    manipulate_type_B() |&gt;
+    store_type_B()
+}
+
+process_type_C &lt;- function(filepath) {
+  load_type_C(filepath) |&gt;
+    verify_type_C() |&gt;
+    manipulate_type_C() |&gt;
+    store_type_C()
+}</code></pre>
+<p>Great!</p>
+<p>But what if we need to change something about the processing.
+We’ve already said we want to do the <em>same general thing</em> to each file, so if we want to change the process, we need to change three things<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
+<p>Or if we want to add another type, then we’d have to write a whole new set of functions.</p>
+<p>What if our new type was basically exactly the same as “C”, but just needed a tweak to the verification step?</p>
+</div>
+<div id="option-2-loads-of-ifs" class="section level1">
+<h1>Option 2: Loads of <code>if</code>s</h1>
+<p>Here we write code that handles our options for us.
+We have some overview process and then handle the specifics with conditionals:</p>
+<pre class="r"><code>my_process &lt;- function(filepath, type) {
+  # load 
+  
+  if (type == &quot;A&quot;) {
+    data &lt;- load_type_A(filepath)
+  } else if (type == &quot;B&quot;) {
+    data &lt;- load_type_B(filepath)
+  } else {
+    # ...etc
+  }
+  
+  # verify
+  if (type == &quot;A&quot;) {
+    verified_data &lt;- verify_type_A(data)
+  } else {
+    # ...etc
+  }
+  
+  # ...etc (rest of process)
+}</code></pre>
+<p>This would mean that we can just load all our files into a single data structure and map or loop over them, e.g.</p>
+<pre class="r"><code>my_data &lt;-
+  tibble(filepath = c(&quot;file1&quot;, &quot;file2&quot;, &quot;file3&quot;, &quot;file4&quot;),
+         types = c(&quot;A&quot;, &quot;B&quot;, &quot;A&quot;, &quot;C&quot;))
+
+my_results &lt;- purrr::walk2(
+  my_data$filepath,
+  my_data$type,
+  my_process
+)</code></pre>
+<p>This solves our interface at a user level, i.e. the user just has to say where the file is and what type it is, and then always calls the same <code>my_process()</code> function.
+Nice and easy for them.</p>
+<p>However, dealing with loads of <code>if</code>s swiftly becomes tedious.
+So much of our code will be the conditional scaffolding that it will be easy to lose track of where the right place to make changes is.
+It makes for code that’s a little more verbose than we want, and since it’s all just <code>if</code> conditionals, then it makes things a little more fragile.</p>
+</div>
+<div id="my-s3-solution" class="section level1">
+<h1>My S3 Solution</h1>
+<p>Essentially what we’ve been trying to achieve so far is building a system that will work a little bit like a dispatcher at at taxi company (bear with me).
+Calls come in to the central office, and the dispatcher routes jobs out to the correct taxi driver.</p>
+<p>Only so far, we’ve been making the drivers handle the dispatching.
+The functions we’ve written do both the job of running the process, but also the job of managing what type of object they are working on.
+Whether this is in the first instance where we’ve explicitly tagged each function name with the right type, or in the second example where we’ve had to embed the decision logic right in with the process logic.</p>
+<p>In the taxi office example, the dispatcher is responsible for sending jobs where they need to go, but doesn’t need to actually drive anywhere.
+And the drivers just need to deal with their own passengers and not with routing jobs.</p>
+<p>The S3 object system allows us to build some infrastructure to do just this.</p>
+<div id="crash-course-in-s3" class="section level2">
+<h2>Crash Course in S3</h2>
+<p>In short, S3 is what lets you call <code>summary()</code> on a linear model and get suitable output <strong>that’s different</strong> from what you get if you call <code>summary()</code> on a data.frame.
+In a way, <code>summary()</code> is smart enough to know that when you call it on a linear model, you want some specific action that relates to linear models and not data.frames.</p>
+<p>R achieves this by having linear models, data.frames and many other things be assigned one or more <strong>classes</strong>.</p>
+<p>The <code>summary()</code> function is what’s called a <strong>generic</strong> function.
+I.e. a function that is written to be applied <em>generically</em> to many different types of things.</p>
+<p>When you call <code>summary()</code> on a linear model, R will check what <strong>class</strong> your linear model is, e.g.</p>
+<pre class="r"><code>my_model &lt;- lm(mpg ~ hp, data = mtcars)
+
+class(my_model)</code></pre>
+<pre><code>## [1] &quot;lm&quot;</code></pre>
+<p>R knows that <code>my_model</code> is of the “lm” class.</p>
+<p>R then calls a <strong>method</strong> of the <code>summary()</code> generic that is specific to the class “<code>lm</code>”, namely, <code>summary.lm()</code>.
+There’s loads of other methods, e.g. <code>summary.data.frame()</code>.
+The naming convention is <code>generic.class()</code>.</p>
+<p>S3 dispatch is what is going to handle our data flow.</p>
+</div>
+<div id="making-a-generic" class="section level2">
+<h2>Making a Generic</h2>
+<p>Back to our three type example.</p>
+<p>Let’s start by designing at the forest level.
+We want our process to be something like:</p>
+<pre class="r"><code>process &lt;- function(binder_data) {
+  load(binder_data) |&gt;
+    verify() |&gt;
+    manipulate() |&gt;
+    store()
+}</code></pre>
+<p>Note that this (superficially) looks almost exactly the same as our initial type-specific implementations, but we’ve taken out the “<code>_type_A</code>” suffixes to our functions.</p>
+<p>We will be able to do this, because each of these functions, <code>load()</code>, <code>verify()</code>, <code>manupulate()</code>, and <code>store()</code> won’t be normal functions, but instead will be generics.</p>
+<p>Before we proceed in fleshing out the specifics, we need to tell R that these are generics.
+We do this using the following code:</p>
+<pre class="r"><code>load &lt;- function(x, ...) {
+  UseMethod(&quot;load&quot;)
+}
+
+# similar definitions for the others</code></pre>
+<p>Some key points:</p>
+<ul>
+<li>the generic definitions don’t include any implementation: that comes later when we implement the methods</li>
+<li>the argument to <code>UseMethod</code> should match the name of the generic</li>
+<li>the arguments included in the <code>function()</code> define the minimum set of arguments that each method should also accept.
+It’s common to include <code>...</code> in the arguments as then specific methods can accept more than this minimum set</li>
+</ul>
+</div>
+<div id="one-more-peice-of-scaffolding" class="section level2">
+<h2>One more peice of scaffolding</h2>
+<p>I want a way to make a general abstract class that says an object is of the type that I want to process without nailing down <em>what</em> type it is.
+Let’s stick with our prior example for which I want a general “<code>binder_data</code>” class that any binder data belongs to regardless of its type.</p>
+<p>Luckily S3 objects’ class attribute can actually be a vector, e.g. <code>tibble()</code> makes tibble objects with the following class:</p>
+<pre class="r"><code>class(tibble::tibble(mtcars))</code></pre>
+<pre><code>## [1] &quot;tbl_df&quot;     &quot;tbl&quot;        &quot;data.frame&quot;</code></pre>
+<p>Calling any generic on this object will make R first check to see whether there’s a <code>tbl_df</code> method, if there is, then that method will be used, if there isn’t, R will check whether there’s a <code>tbl</code> method, failing that R will use the <code>data.frame</code> method.</p>
+<p>So we can use this feature to set up objects like:</p>
+<ul>
+<li><code>"A" "binder_data"</code></li>
+<li><code>"B" "binder_data"</code></li>
+<li><code>"C" "binder_data"</code></li>
+</ul>
+<p>That is, three different classes that represent each type, but all of them are also of the “<code>binder_data</code>” class.
+We do this so we can have methods that work at the specific type level or functions that work on a general <code>binder_data</code> level for when we want to do the same thing to all types.</p>
+<p>We could make a constructor function like so:</p>
+<pre class="r"><code>binder_data &lt;- function(type, filepath) {
+  output &lt;- list(
+    data = NULL,
+    filepath = filepath
+  )
+  
+  class(output) &lt;- c(type, &quot;binder_data&quot;, class(output))
+  output
+}</code></pre>
+<p>We do two main things here:</p>
+<ol style="list-style-type: decimal">
+<li>construct a list called <code>output</code> in which to store both our data and our filepath information</li>
+<li>change the <code>output</code> list’s class to be the type, “<code>binder_data</code>” and then whatever class it was before (in our case <code>list</code>).
+This last bit makes R use whatever <code>list</code> methods exist where we haven’t defined a <code>binder_data</code> method.</li>
+</ol>
+<p>Now if we have a file path for a file that’s of type A, we can set up the input to our process as so:</p>
+<pre class="r"><code>example_file_1 &lt;- binder_data(&quot;A&quot;, &quot;path/to/file.csv&quot;)
+class(example_file_1)</code></pre>
+<pre><code>## [1] &quot;A&quot;           &quot;binder_data&quot; &quot;list&quot;</code></pre>
+<p>And we can do similar for files of type “B” etc.</p>
+<p>Currently we’ve not made any limits on what the <code>type</code> argument could be and we’ll discuss that later.</p>
+</div>
+<div id="our-first-method" class="section level2">
+<h2>Our first method</h2>
+<p>Now we have objects of class <code>binder_data</code> and type, we want to make some methods for these.</p>
+<p>For example, a <code>load</code> method.
+Recall that we have already defined <code>load</code> as a generic.
+We now need to make it work on objects of type “<code>A</code>”, “<code>B</code>” etc.</p>
+<pre class="r"><code>load.A &lt;- function(x) {
+  x$data &lt;- readr::read_csv(x$filepath)
+  x
+}</code></pre>
+<p>We know<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a> that any object of type <code>A</code> has been made with <code>binder_data</code> and so has a <code>data</code> value and a <code>filepath</code> value.</p>
+<p>We can then make a <code>load</code> method for objects of type C:</p>
+<pre class="r"><code>load.C &lt;- function(x) {
+  x$data &lt;- readxl::read_xlsx(x$filepath)
+  x
+}</code></pre>
+<p>We can do the same for all the other steps in the process and all the other types of file.</p>
+<p>By setting ourselves up with S3 classes, R will be handling all the dispatching of methods for us.</p>
+</div>
+<div id="organisation" class="section level2">
+<h2>Organisation</h2>
+<p>But this still makes a lot of code, but luckily it’s fairly modular.
+We can also respect the two different levels of our processing.
+I’d recommend something like this file layout:</p>
+<ul>
+<li><code>processing.R</code> holds the definition of <code>process()</code> and anything else that’s ‘forest level’</li>
+<li><code>generics.R</code> holds the definition of all the generic functions like <code>load()</code> and <code>manipulate</code>, also holds the definition of <code>binder_data()</code>.</li>
+<li><code>methods_A.R</code> holds all the methods specific to the files of type A (a ‘tree level’ file)</li>
+<li><code>methods_B.R</code> holds all the methods specific to the files of type B</li>
+<li>etc with a new file for each new file type</li>
+</ul>
+<p>This keeps our work nice and neat and makes it obvious where we need to make changes, e.g.:</p>
+<ul>
+<li>if you want to change the flow of the overall process you change <code>processing.R</code>.</li>
+<li>if you want to add a new file type, make a new <code>methods_x.R</code> file.</li>
+</ul>
+</div>
+<div id="dealing-with-the-same-action" class="section level2">
+<h2>Dealing with the same action</h2>
+<p>When you have a processing step that’s the same across all file types, you don’t need to copy and paste the same code for each type.
+i.e. you don’t need to make <code>step.A()</code> and <code>step.B()</code> etc, if <code>step()</code> will be implemented the same for all types.</p>
+<p>Rather, just make a <code>step.binder_data()</code> and <em>this</em> method is the one that will be called regardless of the file types.
+That is, when you call <code>step()</code> on your object, R will look at your object of class <code>"A" "binder_data" "list"</code>.
+It will look for <code>step.A()</code> but it won’t find any definition, and so it will then look for <code>step.binder_data()</code> and apply that.</p>
+<p>Now, say you have ten different file types and nine of them need the same processing but the tenth needs something special.
+Simple, just implement a <code>step.binder_data()</code> that has the common implementation and then make a <code>step.J()</code> for the tenth file type that’s a problem.
+S3 dispatch will handle the rest.</p>
+</div>
+<div id="what-if-someone-tries-to-make-an-unexpected-type" class="section level2">
+<h2>What if someone tries to make an unexpected type?</h2>
+<p>This also lets us handle the case when someone accidently makes a <code>binder_data</code> object with a type you haven’t implemented yet.</p>
+<p>Say you have <code>load.A()</code>, <code>load.B()</code> and <code>load.C()</code> all implemented, because you think that covers the problem domain.
+But then someone comes along and runs:</p>
+<pre class="r"><code>my_awkward_thing &lt;- binder_data(&quot;D&quot;, &quot;path/to/file.csv&quot;)</code></pre>
+<p>They won’t be able to proceed since there is no <code>load.D()</code> and there is no <code>load.binder_data()</code>.</p>
+<p>If you’re happy that the following error tells them all they need to know, then you don’t need to do any more.
+The S3 dispatch infrastructure means that unexpected things are thrown out at an early enough opportunity.</p>
+<pre class="r"><code>load(my_awkward_thing)</code></pre>
+<pre><code>## Error in UseMethod(&quot;load&quot;): no applicable method for &#39;load&#39; applied to an object of class &quot;c(&#39;D&#39;, &#39;binder_data&#39;, &#39;list&#39;)&quot;</code></pre>
+<p>But if you want to be a little more helpful, and there’s no generic process that you want to apply to all <code>binder_data</code> objects, you could implement a fall back method that would be called on all <code>binder_data</code> objects with an unrecognised file type.
+For example:</p>
+<pre class="r"><code>load.binder_data &lt;- function(x) {
+  stop(paste0(&quot;`load` is not implemented for file types &#39;&quot;, class(x)[[1]], &quot;&#39;&quot;))
+}
+
+load(my_awkward_thing)</code></pre>
+<pre><code>## Error in load.binder_data(my_awkward_thing): `load` is not implemented for file types &#39;D&#39;</code></pre>
+</div>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion</h1>
+<p>S3 may not be the best dispatch method for your job.
+It could either be overkill or even underpowered.
+You might be fine with writting loads of different specific functions, and you may need the more constrained power of S4, or something available in a different language altogether.</p>
+<p>Nevertheless, I think that S3 is such a little step up developer learning that gives you massive gains in flexibility of your programming that it’s worth a place in your toolbox.</p>
+<p>In my actual work examples.
+I’ve ended up following a similar framework and it’s worked well.
+It means that I’ve managed to keep the two layers of abstraction separate, have more modular code, and it’s easier to understand how everything fits together.</p>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p>The insurance company operates under what’s called a “binder” or “binding agreement” whereby they let some other entity sell and manage policies on their behalf but they are the ones actually doing the insurance and so are entitled to detailed data. Each data set is from a different binder, hence a totally different style<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>recall, I have near ten things in my actual situation<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>We don’t technically know this for sure, as S3 is a very lose system, you can change the <code>class</code> of any object at runtime, and make R think something is whatever you tell it. Since R doesn’t have private constructors as well, you can’t know for sure that someone hasn’t made hand-constructed something unexpected. But while your users <em>can</em> do this, most won’t because they probably want to get work done. Bear that in mind when you’re designing something and decide whether R/S3 is the right fit for the problem<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
