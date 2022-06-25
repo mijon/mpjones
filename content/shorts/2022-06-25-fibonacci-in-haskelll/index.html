@@ -1,0 +1,77 @@
+---
+title: Fibonacci in Haskelll
+author: Michael
+date: '2022-06-25'
+slug: fibonacci-in-haskelll
+categories:
+  - Haskell
+tags: []
+---
+
+
+
+<p>A quick one today.</p>
+<p>There’s a nice implementation of the <a href="https://en.wikipedia.org/wiki/Fibonacci_number">Fibonacci numbers</a> in Haskell that shows off some of the features of <a href="https://en.wikipedia.org/wiki/Lazy_evaluation">lazy evaluation</a> and infinite lists in Haskell.</p>
+<p>Now there are more efficient ways to do this, e.g. the closed-form Binet solution, but this Haskell solution is really rather neat (at least to me). I’ll show the whole thing, then break it down.</p>
+<pre class="haskell"><code>fibs :: [Int]
+fibs = 1 : 1 : zipWith (+) fibs (drop 1 fibs)</code></pre>
+<p>I like this because it clearly shows the way the Fibonacci sequence is defined.</p>
+<p>So let’s break it down.</p>
+<p>The first line is a type definition, not strictly needed for this example, but it states our intentions: we want to end up with <code>fibs</code> being a list of integers.</p>
+<p>The second line is the calculation definition.
+The top level of the breakdown is splitting the definition into three pieces delimited by the colon <code>:</code>.
+The <code>:</code> is the “cons operator” which essentially means <em>put the left hand argument at the start of the list defined by the right hand argument</em>.
+Note that the right hand argument needs to be a list.
+So ignoring the third argument for now, let’s look at</p>
+<pre class="haskell"><code>1 : 1 : []</code></pre>
+<p>Reading from right to left, we have an empty list, then we put a <code>1</code> at the start of it, getting <code>[1]</code>, then we put another <code>1</code> at the start of that list getting <code>[1, 1]</code>.</p>
+<p>That’s the first two elements of the Fibonnaci series.</p>
+<p>Then comes the meat of the problem.
+To make the <em>n</em>th element, we need to add elements <em>n-1</em> and <em>n-2</em>.</p>
+<p>Luckily, Haskell is lazily evaluated, meaning that we only ever calculate something when we need it.
+It also allows infinite lists.
+These two features together means that we can define a list in terms of itself (i.e. a recursive definition).</p>
+<p>So for now, assume that you have a list of the first five fibonacci numbers: 1, 1, 2, 3, 5.</p>
+<pre class="haskell"><code>mylist = [1, 1, 2, 3, 5]</code></pre>
+<p>We can “shift” this list one to the left by dropping the first element:</p>
+<pre class="haskell"><code>drop 1 mylist
+-- [1, 2, 3, 5]</code></pre>
+<p>Then we can pair-wise add each element from <code>mylist</code> and this shifted version using <code>zipWith</code><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<pre class="haskell"><code>zipWith (+) my list (drop 1 mylist)
+-- [2, 3, 5, 8]</code></pre>
+<p>Scehmatically, what’s happening here is:</p>
+<pre><code>mylist             [ 1   1   2   3   5   ]
+                     +   +   +   +   +
+(drop 1 my list)   [ 1   2   3   5       ]
+
+=                  [ 2   3   5   8       ]
+</code></pre>
+<p>See how we’ve generated the next number in the sequence, 8.</p>
+<p>Now imagine if the list was infinite:</p>
+<pre><code>mylist             [ 1   1   2   3   5   ...]
+                     +   +   +   +   +
+(drop 1 my list)   [ 1   2   3   5   8   ...]
+
+=                  [ 2   3   5   8   13  ...]
+</code></pre>
+<p>Which is exactly our definition of <code>fibs</code>.
+Note that the result here drops off the first two <code>1</code>s, hence we need to add them back in to the result using the <code>cons</code> operator.
+Hence we have as our solution:</p>
+<pre class="haskell"><code>fibs :: [Int]
+fibs = 1 : 1 : zipWith (+) fibs (drop 1 fibs)</code></pre>
+<p>It’s important to note that this <em>defines</em> the way to calculate the sequence, it doesn’t actually set your CPU off on an unending process of calculating terms.
+It merely gives us a way to make as many terms as we need, e.g. if we want the first ten numbers, we simply do:</p>
+<pre class="haskell"><code>take 10 fibs
+-- [1,1,2,3,5,8,13,21,34,55]</code></pre>
+<p>Haskell only calculates the ten we need.</p>
+<p>I used a similar technique when doing some early <a href="https://projecteuler.net/">Project Euler</a> problems that needed some prime numbers.
+With a function to test for primality, and the inifinite sequence of integers, it’s easy enough to make an infinite list of all the primes like:</p>
+<pre class="haskell"><code>primes = filter (primality_test) [1..]</code></pre>
+<p>(The <code>filter</code> function takes a predicate function and a list and returns each element of the list for which the predicate is true, <code>[1..]</code> is the infinite list of integers starting a 1)</p>
+<p>Whenver I needed, say, the first 100 prime numbers, all I needed to execute was <code>take 10 primes</code>.</p>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p>This is a function that takes a binary operation and two lists, and combines the elements of the two lists in a pair wise fashion using the binary operation, <code>zipWith :: (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]</code> is the type signature<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
