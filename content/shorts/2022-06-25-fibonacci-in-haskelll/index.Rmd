@@ -111,7 +111,7 @@ take 10 fibs
 Haskell only calculates the ten we need.
 
 I used a similar technique when doing some early [Project Euler](https://projecteuler.net/) problems that needed some prime numbers. 
-With a function to test for primality, and the inifinite sequence of integers, it's easy enough to make an infinite list of all the primes like:
+With a function to test for primality, and the infinite sequence of integers, it's easy enough to make an infinite list of all the primes like:
 
 ```haskell
 primes = filter (primality_test) [1..]
@@ -119,4 +119,4 @@ primes = filter (primality_test) [1..]
 
 (The `filter` function takes a predicate function and a list and returns each element of the list for which the predicate is true, `[1..]` is the infinite list of integers starting a 1)
 
-Whenver I needed, say, the first 100 prime numbers, all I needed to execute was `take 10 primes`.
+Whenever I needed, say, the first 100 prime numbers, all I needed to execute was `take 10 primes`.

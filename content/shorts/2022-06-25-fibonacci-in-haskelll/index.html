@@ -65,10 +65,10 @@ It merely gives us a way to make as many terms as we need, e.g. if we want the 
 -- [1,1,2,3,5,8,13,21,34,55]</code></pre>
 <p>Haskell only calculates the ten we need.</p>
 <p>I used a similar technique when doing some early <a href="https://projecteuler.net/">Project Euler</a> problems that needed some prime numbers.
-With a function to test for primality, and the inifinite sequence of integers, it’s easy enough to make an infinite list of all the primes like:</p>
+With a function to test for primality, and the infinite sequence of integers, it’s easy enough to make an infinite list of all the primes like:</p>
 <pre class="haskell"><code>primes = filter (primality_test) [1..]</code></pre>
 <p>(The <code>filter</code> function takes a predicate function and a list and returns each element of the list for which the predicate is true, <code>[1..]</code> is the infinite list of integers starting a 1)</p>
-<p>Whenver I needed, say, the first 100 prime numbers, all I needed to execute was <code>take 10 primes</code>.</p>
+<p>Whenever I needed, say, the first 100 prime numbers, all I needed to execute was <code>take 10 primes</code>.</p>
 <div class="footnotes footnotes-end-of-document">
 <hr />
 <ol>
