@@ -1,8 +1,8 @@
 ---
-title: Fibonacci in Haskelll
+title: Fibonacci in Haskell
 author: Michael
 date: '2022-06-25'
-slug: fibonacci-in-haskelll
+slug: fibonacci-in-haskell
 categories:
   - Haskell
 tags: []
