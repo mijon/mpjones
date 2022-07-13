@@ -1,0 +1,277 @@
+---
+title: Keeping Track With Pipes
+author: Michael
+date: '2022-07-12'
+slug: keeping-track-with-pipes
+categories:
+  - r
+tags: []
+---
+
+
+
+<p>It’s 3am and you hear banging on your front door.
+You go downstairs to see who it is.
+It’s the Data Police, and they don’t look happy.</p>
+<p>“What exactly did you do to get that <code>data.frame</code>?
+You need to tell us right now and you need to be accurate”</p>
+<p>It’s an occurrence that we’ll all experience sooner or later in our careers as data professionals, and so it’s useful to be able to design systems that keep track of what transformations we’re applying to our data.</p>
+<p>There are a few ways, ranging from basic and verbose, to a little cleaner.</p>
+<div id="the-basic-idea" class="section level2">
+<h2>The basic idea</h2>
+<p>We want a way of looking at the end product of an analysis and seeing how it was made.
+We want to be able to construct its history, from the object itself and not through reading back all the code.
+I’d say the latter is an almost-solved problem: in R, use clear code, pure functions and the {targets} package and you should be most of the way there.</p>
+<p>Today, though, we’re playing around with implementing the former.</p>
+<p>We’re going to have as our example this complex piece of data analysis:</p>
+<pre class="r"><code>library(tidyverse)
+library(palmerpenguins)
+
+penguins %&gt;%
+  mutate(bill_area = bill_length_mm * bill_depth_mm) %&gt;%
+  group_by(species) %&gt;%
+  summarise(bill_area = mean(bill_area, na.rm = TRUE))</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   species   bill_area
+##   &lt;fct&gt;         &lt;dbl&gt;
+## 1 Adelie         713.
+## 2 Chinstrap      902.
+## 3 Gentoo         714.</code></pre>
+<p>And we want to end up with some sort of log of the steps we’ve taken at each stage.</p>
+</div>
+<div id="first-attempt" class="section level2">
+<h2>First Attempt</h2>
+<p>We’ll start with keeping our logging information in a list.</p>
+<p>Out first attemp my be to try to re-write some of the {dplyr} functions to take a log and a data.frame and work from there.
+We can (ab)use the <code>...</code> arguments of R functions to accept them and pass them through to the actual dplyr function:</p>
+<pre class="r"><code>log &lt;- list()
+
+logged_mutate &lt;- function(df_and_log, ...) {
+  
+  new_log &lt;- append(&quot;mutate&quot;, df_and_log$log)
+  new_df &lt;- mutate(df_and_log$df, ...)
+  list(df = new_df,
+       log = new_log)
+}
+
+logged_group_by &lt;- function(df_and_log, ...) {
+  new_log &lt;- append(&quot;group_by&quot;, df_and_log$log)
+  new_df &lt;- group_by(df_and_log$df, ...)
+  list(df = new_df,
+       log = new_log)
+}
+
+logged_summarise &lt;- function(df_and_log, ...) {
+  new_log &lt;- append(&quot;summarise&quot;, df_and_log$log)
+  new_df &lt;- summarise(df_and_log$df, ...)
+  list(df = new_df,
+       log = new_log)
+}
+
+tmp &lt;- logged_mutate(list(df = penguins, log = log),
+                     bill_area = bill_length_mm * bill_depth_mm) %&gt;%
+  logged_group_by(species) %&gt;%
+  logged_summarise(bill_area = sum(bill_area, na.rm = TRUE))
+
+tmp</code></pre>
+<pre><code>## $df
+## # A tibble: 3 × 2
+##   species   bill_area
+##   &lt;fct&gt;         &lt;dbl&gt;
+## 1 Adelie      107654.
+## 2 Chinstrap    61335.
+## 3 Gentoo       87779.
+## 
+## $log
+## $log[[1]]
+## [1] &quot;summarise&quot;
+## 
+## $log[[2]]
+## [1] &quot;group_by&quot;
+## 
+## $log[[3]]
+## [1] &quot;mutate&quot;</code></pre>
+<p>but this has some draw backs:</p>
+<ul>
+<li>We currently have no more information about the process applied, other than some <code>mutate</code> happened</li>
+<li>We have to wrap all of the dplyr functions in a new <code>logged_*</code> function, which means that we can only apply logging to functions that we make the effort to enable logging with.</li>
+<li>Fundamentally here, our analysis functions are becoming <em>analysis and logging</em> functions.
+They are no longer doing a single job since they have to also wrap and unwrap the log.</li>
+</ul>
+</div>
+<div id="aside-abstraction-possiblity" class="section level2">
+<h2>Aside: Abstraction Possiblity</h2>
+<p>While it’s not the solution we’re going to end up with, it’s worth noting that we can go a little further down this path by making a function factory to produce these wrapped dplyr functions.
+We’re still going to have to define each function we want to use, but it will save a little typing and potential for copy/paste errors:</p>
+<pre class="r"><code>wrap_with_logging &lt;- function(fun, fun_name) {
+  function(df_and_log, ...) {
+    new_log &lt;- append(fun_name, df_and_log$log)
+    new_df &lt;- fun(df_and_log$df, ...)
+    list(df = new_df,
+         log = new_log)
+  }
+}
+
+
+logged_mutate2 &lt;- wrap_with_logging(mutate, &quot;mutate&quot;)
+logged_group_by2 &lt;- wrap_with_logging(group_by, &quot;group_by&quot;)
+logged_summarise2 &lt;- wrap_with_logging(summarise, &quot;summarise&quot;)
+
+tmp &lt;- logged_mutate2(list(df = penguins, log = log),
+                      bill_area = bill_length_mm * bill_depth_mm) %&gt;%
+  logged_group_by2(species) %&gt;%
+  logged_summarise2(bill_area = sum(bill_area, na.rm = TRUE))
+
+tmp</code></pre>
+<pre><code>## $df
+## # A tibble: 3 × 2
+##   species   bill_area
+##   &lt;fct&gt;         &lt;dbl&gt;
+## 1 Adelie      107654.
+## 2 Chinstrap    61335.
+## 3 Gentoo       87779.
+## 
+## $log
+## $log[[1]]
+## [1] &quot;summarise&quot;
+## 
+## $log[[2]]
+## [1] &quot;group_by&quot;
+## 
+## $log[[3]]
+## [1] &quot;mutate&quot;</code></pre>
+<p>This at least saves us some work, but we’ve still got the issues with functions having multiple purposes.</p>
+</div>
+<div id="modifying-the-pipe" class="section level2">
+<h2>Modifying the Pipe</h2>
+<p>We really want a solution that abstracts out the process of wrapping and unwrapping the logging infrastructure so we can separate it from the actual analysis.
+We’re going to do that by modifying the <code>%&gt;%</code> pipe.</p>
+<p>Confession time: I don’t really know <em>how</em> the magrittr pipe works, but that’s not going to stop us.
+Using one of my favourite features of R, let’s look at the internal code:</p>
+<pre class="r"><code>magrittr::`%&gt;%`</code></pre>
+<pre><code>## function (lhs, rhs) 
+## {
+##     lhs &lt;- substitute(lhs)
+##     rhs &lt;- substitute(rhs)
+##     kind &lt;- 1L
+##     env &lt;- parent.frame()
+##     lazy &lt;- TRUE
+##     .External2(magrittr_pipe)
+## }
+## &lt;bytecode: 0x555d6ece7fc8&gt;
+## &lt;environment: namespace:magrittr&gt;</code></pre>
+<p>Okay, the first two lines quotes the first and second arguments to the function respectively<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>The next line sets a variable to 1. This is one of those lines that’s magic to me: I’ll just leave it there and hope all works.</p>
+<p>The next line defines a variable to point to the parent environment.
+R lets you pass around code and evaluate it in different environments.
+Each function has its own environment that’s just for the body of the code, but each function exists in a different environment, it’s “parent environment”, it’s <code>parent.frame()</code>.</p>
+<p><code>.External2</code> is apparently “an enhanced version of <code>.External</code> which passes additional information in more arguments”.
+<code>.External</code> is a function “to pass R objects to compiled C/C++ code that has been loaded into R”.
+So I suppose that magrittr is doing something behind the scenes with some compiled code.
+Maybe I’ll look into that one day, but not today.
+We’ve got all we need for now.</p>
+<p>We’re going to take the <code>%&gt;%</code> source code and adapt it to our needs which are:</p>
+<ul>
+<li>We want our new pipe to be able to handle a list with the data.frame and the log on the left</li>
+<li>We want it to handle all the unwrapping, re-wrapping and log processing for us</li>
+<li>We want it to work without us having to change any of the dplyr functions.</li>
+</ul>
+<p>Since we’re going to be wrapping and unwrapping the log, we may as well write a function to handle the wrapping for us:</p>
+<pre class="r"><code>wrap_with_log &lt;- function(df, log = list()) {
+  if (missing(log)) {
+    log &lt;- substitute(df)
+  }
+  list(
+    df = df,
+    log = log
+  )
+}</code></pre>
+<p>The <code>if</code> just checks for the case that a log isn’t given.
+This is for convenience so we can <code>wrap_with_log(penguins)</code> at the start, without having to supply a log.</p>
+<p>Our new pipe just needs a few adaptations from {magrittr}’s, and we’ll call it <code>%&lt;$&gt;%</code>:</p>
+<pre class="r"><code>`%&lt;$&gt;%` &lt;- function(lhs_logged, rhs) {
+  lhs &lt;- lhs_logged$df
+  log &lt;- lhs_logged$log
+  lhs &lt;- substitute(lhs)
+  rhs &lt;- substitute(rhs)
+  new_log &lt;- append(log, rhs)
+  
+  # regular pipe stuff
+  kind &lt;- 1L
+  env &lt;- parent.frame()
+  lazy &lt;- TRUE
+  a &lt;- .External2(magrittr:::magrittr_pipe)
+  
+  wrap_with_log(a, new_log)
+}</code></pre>
+<p>A few things to note:</p>
+<ul>
+<li>This does no error checking, i.e. it will just fail ungracefully if the <code>lhs_logged</code> argument isn’t a list of the expected type.</li>
+<li>We’re taking advantage of the fact that <code>%&gt;%</code> quotes the input to get better logs (see where we just <code>append</code> the <code>rhs</code> to make <code>new_log</code>).</li>
+<li>We’re running the normal pipe, but saving it to <code>a</code> and then wrapping with the log before we return it at the end of the function.</li>
+</ul>
+<p>All in all, this has let us do:</p>
+<pre class="r"><code>analysis &lt;- wrap_with_log(penguins) %&lt;$&gt;%
+  mutate(bill_area = bill_length_mm * bill_depth_mm) %&lt;$&gt;%
+  group_by(species) %&lt;$&gt;%
+  summarise(bill_area = mean(bill_area, na.rm = TRUE))</code></pre>
+<p>So we’ve got <code>analysis</code> now, that’s a <code>list()</code> of two items.</p>
+<p>The output data:</p>
+<pre class="r"><code>analysis$df</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   species   bill_area
+##   &lt;fct&gt;         &lt;dbl&gt;
+## 1 Adelie         713.
+## 2 Chinstrap      902.
+## 3 Gentoo         714.</code></pre>
+<p>And the log:</p>
+<pre class="r"><code>analysis$log</code></pre>
+<pre><code>## [[1]]
+## penguins
+## 
+## [[2]]
+## mutate(bill_area = bill_length_mm * bill_depth_mm)
+## 
+## [[3]]
+## group_by(species)
+## 
+## [[4]]
+## summarise(bill_area = mean(bill_area, na.rm = TRUE))</code></pre>
+<p>And we can get back code that would reproduce the analysis with this function:</p>
+<pre class="r"><code>get_code &lt;- function(df_with_log) {
+  df_with_log$log %&gt;%
+    map_chr(deparse) %&gt;%
+    paste(collapse = &quot; %&gt;% &quot;)
+}
+
+get_code(analysis)</code></pre>
+<pre><code>## [1] &quot;penguins %&gt;% mutate(bill_area = bill_length_mm * bill_depth_mm) %&gt;% group_by(species) %&gt;% summarise(bill_area = mean(bill_area, na.rm = TRUE))&quot;</code></pre>
+<p>Which is actually valid code and can be run:</p>
+<pre class="r"><code>eval(str2lang(get_code(analysis)))</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   species   bill_area
+##   &lt;fct&gt;         &lt;dbl&gt;
+## 1 Adelie         713.
+## 2 Chinstrap      902.
+## 3 Gentoo         714.</code></pre>
+</div>
+<div id="extensions-and-future-work" class="section level2">
+<h2>Extensions and Future Work</h2>
+<p>I’m not sure whether this has legs, but if I were to use it properly, I’d want to do the following things:</p>
+<ul>
+<li>More defensive programming, e.g. something to handle situations with badly formed arguments, errors, etc.</li>
+<li>Tidier ways of recovering the code etc</li>
+<li>A better format for the log itself and the data wrapped in a log e.g.
+<ul>
+<li>the log could be some S3 class</li>
+<li>the log could be kept in the attributes of the data. Maybe; there are benefits to both approaches.</li>
+</ul></li>
+</ul>
+<p>I’m going to have a think and see if this can be fleshed out a little more.</p>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p>Remember that in R, any 2-argument function defined inside <code>%</code>s can be used in “infix” mode, as if it were an operator. It’s customary then to refer to the arguments as <code>lhs</code> and <code>rhs</code>, i.e. the one on the left hand side of the operator and the one on the right hand side<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
