@@ -1,0 +1,279 @@
+---
+title: When your code maybe works
+author: Michael
+date: '2022-08-03'
+slug: when-your-code-maybe-works
+categories:
+  - r
+  - functional programming
+tags: []
+---
+
+
+
+<div id="functions-to-crash" class="section level2">
+<h2>Functions to crash</h2>
+<p>R has a few ways to signal that something has gone wrong.
+For example, there’s the aptly-named <code>stop()</code> for when you need the program to stop completely:</p>
+<pre class="r"><code>stop(&quot;There was an error&quot;)</code></pre>
+<pre><code>## Error in eval(expr, envir, enclos): There was an error</code></pre>
+<p>Or the newer <code>cli::cli_abort()</code>:</p>
+<pre class="r"><code>cli::cli_abort(&quot;There was an error&quot;)</code></pre>
+<pre><code>## Error:
+## ! There was an error</code></pre>
+<p>As an aside, I like <code>cli::cli_abort()</code>, I think it’s what powers all/most of the tidyverse errors (taking over from <code>rlang::abort()</code>).
+It comes when {glue}-like syntax and fancier error prompts:</p>
+<pre class="r"><code>x &lt;- 100
+cli::cli_abort(c(&quot;There was an error because x had value: {x}&quot;,
+                 &quot;i&quot; = &quot;x cannot have value &quot;,
+                 &quot;x&quot; = &quot;Don&#39;t do that again.&quot;))</code></pre>
+<pre><code>## Error:
+## ! There was an error because x had value: 100
+## ℹ x cannot have value
+## ✖ Don&#39;t do that again.</code></pre>
+<p>But throwing an error like this will stop your program - if the code is being used interactively like how a lot of R will be used, that’s probably the right thing to do.
+If you write an informative error message that allows the user to pinpoint the issue, they can quickly fix it and get on their way.
+For example, say we try to access a column that doesn’t exist using <code>dplyr::select()</code>:</p>
+<pre class="r"><code>library(dplyr)
+library(palmerpenguins)
+
+penguins %&gt;% select(mpg)</code></pre>
+<pre><code>## Error in `select()`:
+## ! Can&#39;t subset columns that don&#39;t exist.
+## ✖ Column `mpg` doesn&#39;t exist.</code></pre>
+<p>This immediately breaks and tells you exactly what’s wrong.</p>
+<p>But we have other options.
+What if we wanted to handle functions that could fail in a bit more of an elegant way.</p>
+</div>
+<div id="option-or-maybe" class="section level2">
+<h2><code>Option</code> or <code>Maybe</code></h2>
+<p>Many stronger typed languages have things called <code>Option</code><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> or <code>Maybe</code><a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.
+These can be thought of as a box that <em>might</em> contain a value, but could also contain nothing.</p>
+<p>If you have a function that you’d really like to get an integer from usually, you may find when you write that function that there are cases where you won’t get an integer back.
+You could raise an error but if you want to be fancier, you could write your whole function to return a <code>Maybe Int</code>, that is, an integer wrapped in this <code>Maybe</code> box.</p>
+<p>In the case that the function works you are provided with a box that has your integer in it.
+This is often called a <code>Just</code>, as in <code>Just 4</code> or <code>Just 1003</code>.
+The “<code>Just</code>” bit means that the function worked.</p>
+<p>In the case that the function did not work, you’d get back a <code>Nothing</code>.
+No error is thrown, but you know the function didn’t work because of what you got back.</p>
+<p>The key here is that both of these things, <code>Just 4</code> and <code>Nothing</code> are of the type <code>Maybe</code> in stronger typed languages.</p>
+<p>R doesn’t have a fantastic type system but we can pretend a bit using the S3 class system.</p>
+<div id="maybe-in-r" class="section level3">
+<h3><code>Maybe</code> in R</h3>
+<p>So we first need a way to make things of class <code>maybe</code>.
+Recall that we want to be able to model two states:</p>
+<ol style="list-style-type: decimal">
+<li>a “success” state</li>
+<li>a “failure” state</li>
+</ol>
+<p>To do this, we will make two <strong>constructor</strong> functions for objects in our <code>maybe</code> class.</p>
+<p>These are:</p>
+<pre class="r"><code>just &lt;- function(x) {
+  output &lt;- list(
+    value = x,
+    constructor = &quot;just&quot;
+  )
+  class(output) &lt;- &quot;maybe&quot;
+  output
+}
+
+nothing &lt;- function(x) {
+  output &lt;- list(
+    constructor = &quot;nothing&quot;
+  )
+  class(output) &lt;- &quot;maybe&quot;
+  output
+}</code></pre>
+<p>Note the following things:</p>
+<ul>
+<li>In both instances we make an object with class <code>maybe</code></li>
+<li>Both constructors are modelled as a list with a <code>constructor</code> element that holds whether this is a <code>just</code> or a <code>nothing</code>.</li>
+<li>The <code>nothing</code> has no <code>value</code> in its list.</li>
+</ul>
+<p>We may as well add a nice <code>print</code> method too:</p>
+<pre class="r"><code>print.maybe &lt;- function(x) {
+  if (x$constructor == &quot;just&quot;) {
+    cat(&quot;Just\n&quot;)
+    print(x$value)
+  } else if (x$constructor == &quot;nothing&quot;) {
+    cat(&quot;Nothing&quot;)
+  }
+}</code></pre>
+<p>This lets us show both states fairly neatly:</p>
+<pre class="r"><code>just(4)</code></pre>
+<pre><code>## Just
+## [1] 4</code></pre>
+<pre class="r"><code>nothing()</code></pre>
+<pre><code>## Nothing</code></pre>
+</div>
+<div id="functions-that-fail-gracefully" class="section level3">
+<h3>Functions that Fail Gracefully</h3>
+<p>So now, let’s make some changes to the tidyverse to make functions that might fail, but do so by returning <code>maybe</code>s
+Recall that earlier we couldn’t <code>dplyr::select()</code> a column that didn’t exist:</p>
+<pre class="r"><code>select(penguins, mpg)</code></pre>
+<pre><code>## Error in `select()`:
+## ! Can&#39;t subset columns that don&#39;t exist.
+## ✖ Column `mpg` doesn&#39;t exist.</code></pre>
+<p>What we want is a new function, which we will call <code>mselect()</code> that will return:</p>
+<ul>
+<li><code>just(result)</code> if the function works, or</li>
+<li><code>nothing()</code> if the function fails</li>
+</ul>
+<p>I’m going to implement this as a simple wrapper over the {dplyr} function that just uses <code>tryCatch</code> to detect the error:</p>
+<pre class="r"><code>mselect &lt;- function(.data, ...) {
+  tryCatch(just(dplyr::select(.data, ...)),
+           error = function(e) nothing())
+}</code></pre>
+<p>We’re accepting the same arguments as <code>dplyr::select()</code> and trying them in that function.
+The <code>tryCatch</code> function detects whether the <code>dplyr::select()</code> throws an error:</p>
+<ul>
+<li>if it doesn’t, then <code>tryCatch</code> returns the result</li>
+<li>if it does, we execute the <code>error</code> function and return <em>that</em> result.
+In this case, <code>nothing()</code></li>
+</ul>
+<p>In practice, this will look like:</p>
+<pre class="r"><code># works
+mselect(penguins, species)</code></pre>
+<pre><code>## Just
+## # A tibble: 344 × 1
+##    species
+##    &lt;fct&gt;  
+##  1 Adelie 
+##  2 Adelie 
+##  3 Adelie 
+##  4 Adelie 
+##  5 Adelie 
+##  6 Adelie 
+##  7 Adelie 
+##  8 Adelie 
+##  9 Adelie 
+## 10 Adelie 
+## # … with 334 more rows</code></pre>
+<pre class="r"><code># doesn&#39;t work
+mselect(penguins, mpg)</code></pre>
+<pre><code>## Nothing</code></pre>
+<p>Fantastic, but now we can’t pipe:</p>
+<pre class="r"><code>mselect(penguins, species) %&gt;% 
+  filter(species == &quot;Adelie&quot;)</code></pre>
+<pre><code>## Error in UseMethod(&quot;filter&quot;): no applicable method for &#39;filter&#39; applied to an object of class &quot;maybe&quot;</code></pre>
+<p>Because <code>dplyr::filter()</code> expects a <code>data.frame</code>, but got a <code>maybe</code> instead.</p>
+<p>We could re-write all our functions to accept a <code>maybe</code> and then give back a <code>maybe</code>.
+But then all our functions would have duplicated code to check whether the <code>maybe</code> is a <code>just</code> value or a <code>nothing</code>, then if it is a <code>just</code> value, we would need to extract that value and run the function.</p>
+<p>If we were to implement that, it would mean there would be loads of duplication in our functions and the functions themselves wouldn’t be doing a single thing well, they would be doing multiple things: Generally a bad way to design functions.</p>
+</div>
+<div id="more-fun-with-pipes" class="section level3">
+<h3>More fun with pipes</h3>
+<p>But, we can do <a href="https://www.mpjon.es/2022/07/12/keeping-track-with-pipes/">interesting things with pipes</a>.
+One of these will be to handle all the unwrapping and re-wrapping of our <code>maybe</code> values for us.</p>
+<p>The full definition is:</p>
+<pre class="r"><code>`%&gt;&gt;=%` &lt;- function(lhs_prime, rhs) {
+  
+  if (!inherits(lhs_prime, &quot;maybe&quot;)) {
+    stop(&quot;type error&quot;)
+  }
+  
+  if (lhs_prime$constructor == &quot;nothing&quot;) {
+    nothing()
+  } else {
+    # Regular pipe stuff
+    rhs &lt;- substitute(rhs)
+    lhs &lt;- substitute(lhs_prime$value)
+    kind &lt;- 1L
+    env &lt;- parent.frame()
+    lazy &lt;- TRUE
+    .External2(magrittr:::magrittr_pipe)
+  }
+}</code></pre>
+<p>Things to note:</p>
+<ul>
+<li>We first check to make sure we’re dealing with <code>maybe</code> values when we use this pipe.
+Fancier languages with fancier type systems would do this for us with their type-checking facilities as part of the language, but us type-paupers have to do it ourselves.</li>
+<li>Then we check if we are getting a <code>maybe</code> value that’s a <code>nothing</code>.
+If we are, then whatever the function in the <code>rhs</code> is, we know we should be returning <code>nothing</code>.
+A function whose inputs have failed, must surely fail as well.</li>
+<li>Finally, if we have a <code>just</code> value, we pull out the <code>value</code> and then do regular pipe stuff from {magrittr}<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</li>
+</ul>
+<p>To demonstrate, let’s make another tidyverse function into a verison that returns a <code>maybe</code>.</p>
+<pre class="r"><code>mfilter &lt;- function(.data, ...) {
+  tryCatch(just(dplyr::filter(.data, ...)),
+           error = function(e) nothing())
+}</code></pre>
+<p>It’s to <code>dplyr::filter()</code> what <code>mselect()</code> was to <code>dplyr::select()</code>.</p>
+<p>And now we can do things like:</p>
+<pre class="r"><code>just(penguins) %&gt;&gt;=%
+  mselect(species) %&gt;&gt;=%
+  mfilter(species == &quot;Chinstrap&quot;)</code></pre>
+<pre><code>## Just
+## # A tibble: 68 × 1
+##    species  
+##    &lt;fct&gt;    
+##  1 Chinstrap
+##  2 Chinstrap
+##  3 Chinstrap
+##  4 Chinstrap
+##  5 Chinstrap
+##  6 Chinstrap
+##  7 Chinstrap
+##  8 Chinstrap
+##  9 Chinstrap
+## 10 Chinstrap
+## # … with 58 more rows</code></pre>
+<p>And our pipe-chain can fail at any points, but the <code>nothing</code> values will be seamlessly propagated through:</p>
+<pre class="r"><code>just(penguins) %&gt;&gt;=%
+  mselect(mpg) %&gt;&gt;=% # &lt;-- fails here
+  mfilter(species == &quot;Chinstrap&quot;)</code></pre>
+<pre><code>## Nothing</code></pre>
+<p>or</p>
+<pre class="r"><code>just(penguins) %&gt;&gt;=%
+  mselect(species) %&gt;&gt;=%
+  mfilter(mpg == &quot;Chinstrap&quot;) # &lt;-- fails here</code></pre>
+<pre><code>## Nothing</code></pre>
+<p>We have to start with <code>just(penguins)</code> rather than <code>penguins</code> as <code>%&gt;&gt;=%</code> expects a <code>maybe</code> on the left.
+If this bothers you, you could make a new infix pipe that doesn’t need a <code>maybe</code> on the left and use that as the first pipe.</p>
+</div>
+<div id="simpler-piping" class="section level3">
+<h3>Simpler Piping</h3>
+<p>But we’ve had to individually redesign all our tidyverse functions.
+I’d prefer not to have to copy and paste them all and make <code>m*</code> versions.</p>
+<p>Luckily, we don’t have to if we notice that <code>mselect()</code> and <code>mfilter()</code> both follow a similar pattern.
+We can exploit this pattern by making a function factory:
+A new function that will accept a tidyverse function as an argument and make a new version that returns a <code>maybe</code>.</p>
+<pre class="r"><code>mwrap &lt;- function(f) {
+  function(...) {
+    tryCatch(just(f(...)),
+             error = function(e) nothing())
+  }
+}</code></pre>
+<p>Note how this function itself returns a function that looks like <code>mselect()</code> and <code>mfilter()</code> (if you blur your eyes a bit).</p>
+<p>This means we can do pipelines like this:</p>
+<pre class="r"><code>just(penguins) %&gt;&gt;=%
+  mwrap(group_by)(species) %&gt;&gt;=%
+  mwrap(summarise)(bill_length_mm = mean(bill_length_mm, na.rm=TRUE),
+                   bill_depth_mm = mean(bill_depth_mm, na.rm = TRUE)) %&gt;&gt;=%
+  mwrap(mutate)(bill_area = bill_length_mm * bill_depth_mm)</code></pre>
+<pre><code>## Just
+## # A tibble: 3 × 4
+##   species   bill_length_mm bill_depth_mm bill_area
+##   &lt;fct&gt;              &lt;dbl&gt;         &lt;dbl&gt;     &lt;dbl&gt;
+## 1 Adelie              38.8          18.3      712.
+## 2 Chinstrap           48.8          18.4      900.
+## 3 Gentoo              47.5          15.0      712.</code></pre>
+<p>And if this fails at any point, we will get a <code>nothing</code> back.</p>
+</div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>This implementation suffers a bit because R’s type system isn’t that strong.
+In languages like Haskell, <code>Maybe</code>s are used a lot, and the <code>&gt;&gt;=</code> syntax is far more powerful than I have implemented here<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.</p>
+<p>Is this a useful thing? I don’t know, that’s up to you.</p>
+<p>Is this an interesting thing? Yes, that’s up to me, and yes it is.</p>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p>e.g. Javascript<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>e.g. Haskell<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>I still don’t really know how it works yet<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>because <code>&gt;&gt;=</code> is defined for all monads, of which <code>Maybe</code> is only a single example<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>

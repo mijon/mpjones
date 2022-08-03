@@ -1,0 +1,304 @@
+---
+title: When your code maybe works
+author: Michael
+date: '2022-08-03'
+slug: when-your-code-maybe-works
+categories:
+  - r
+  - functional programming
+tags: []
+---
+
+
+## Functions to crash
+
+R has a few ways to signal that something has gone wrong.
+For example, there's the aptly-named `stop()` for when you need the program to stop completely:
+
+```{r, error=TRUE}
+stop("There was an error")
+```
+
+Or the newer `cli::cli_abort()`:
+
+```{r, error=TRUE}
+cli::cli_abort("There was an error")
+```
+
+As an aside, I like `cli::cli_abort()`, I think it's what powers all/most of the tidyverse errors (taking over from `rlang::abort()`).
+It comes when {glue}-like syntax and fancier error prompts:
+
+```{r, error=TRUE}
+x <- 100
+cli::cli_abort(c("There was an error because x had value: {x}",
+                 "i" = "x cannot have value ",
+                 "x" = "Don't do that again."))
+```
+
+But throwing an error like this will stop your program - if the code is being used interactively like how a lot of R will be used, that's probably the right thing to do.
+If you write an informative error message that allows the user to pinpoint the issue, they can quickly fix it and get on their way. 
+For example, say we try to access a column that doesn't exist using `dplyr::select()`:
+
+```{r error=TRUE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(palmerpenguins)
+
+penguins %>% select(mpg)
+```
+
+This immediately breaks and tells you exactly what's wrong.
+
+But we have other options.
+What if we wanted to handle functions that could fail in a bit more of an elegant way.
+
+## `Option` or `Maybe`
+
+Many stronger typed languages have things called `Option`^[e.g. Javascript] or `Maybe`^[e.g. Haskell]. 
+These can be thought of as a box that _might_ contain a value, but could also contain nothing.
+
+If you have a function that you'd really like to get an integer from usually, you may find when you write that function that there are cases where you won't get an integer back.
+You could raise an error but if you want to be fancier, you could write your whole function to return a `Maybe Int`, that is, an integer wrapped in this `Maybe` box.
+
+In the case that the function works you are provided with a box that has your integer in it.
+This is often called a `Just`, as in `Just 4` or `Just 1003`.
+The "`Just`" bit means that the function worked.
+
+In the case that the function did not work, you'd get back a `Nothing`.
+No error is thrown, but you know the function didn't work because of what you got back.
+
+The key here is that both of these things, `Just 4` and `Nothing` are of the type `Maybe` in stronger typed languages.
+
+R doesn't have a fantastic type system but we can pretend a bit using the S3 class system.
+
+### `Maybe` in R
+
+So we first need a way to make things of class `maybe`.
+Recall that we want to be able to model two states:
+
+1. a "success" state
+2. a "failure" state
+
+To do this, we will make two **constructor** functions for objects in our `maybe` class.
+
+These are:
+```{r}
+just <- function(x) {
+  output <- list(
+    value = x,
+    constructor = "just"
+  )
+  class(output) <- "maybe"
+  output
+}
+
+nothing <- function(x) {
+  output <- list(
+    constructor = "nothing"
+  )
+  class(output) <- "maybe"
+  output
+}
+```
+
+Note the following things:
+
+- In both instances we make an object with class `maybe`
+- Both constructors are modelled as a list with a `constructor` element that holds whether this is a `just` or a `nothing`.
+- The `nothing` has no `value` in its list.
+
+We may as well add a nice `print` method too:
+
+```{r}
+print.maybe <- function(x) {
+  if (x$constructor == "just") {
+    cat("Just\n")
+    print(x$value)
+  } else if (x$constructor == "nothing") {
+    cat("Nothing")
+  }
+}
+```
+
+This lets us show both states fairly neatly:
+
+```{r}
+just(4)
+
+nothing()
+```
+
+
+### Functions that Fail Gracefully
+
+So now, let's make some changes to the tidyverse to make functions that might fail, but do so by returning `maybe`s
+Recall that earlier we couldn't `dplyr::select()` a column that didn't exist:
+
+```{r, error=TRUE}
+select(penguins, mpg)
+```
+
+What we want is a new function, which we will call `mselect()` that will return:
+
+- `just(result)` if the function works, or
+- `nothing()` if the function fails
+
+I'm going to implement this as a simple wrapper over the {dplyr} function that just uses `tryCatch` to detect the error:
+
+```{r}
+mselect <- function(.data, ...) {
+  tryCatch(just(dplyr::select(.data, ...)),
+           error = function(e) nothing())
+}
+```
+
+
+We're accepting the same arguments as `dplyr::select()` and trying them in that function.
+The `tryCatch` function detects whether the `dplyr::select()` throws an error:
+
+- if it doesn't, then `tryCatch` returns the result
+- if it does, we execute the `error` function and return _that_ result.
+  In this case, `nothing()`
+  
+In practice, this will look like:
+
+```{r}
+# works
+mselect(penguins, species)
+
+# doesn't work
+mselect(penguins, mpg)
+```
+
+Fantastic, but now we can't pipe:
+
+```{r, error=TRUE}
+mselect(penguins, species) %>% 
+  filter(species == "Adelie")
+```
+
+Because `dplyr::filter()` expects a `data.frame`, but got a `maybe` instead.
+
+We could re-write all our functions to accept a `maybe` and then give back a `maybe`.
+But then all our functions would have duplicated code to check whether the `maybe` is a `just` value or a `nothing`, then if it is a `just` value, we would need to extract that value and run the function.
+
+If we were to implement that, it would mean there would be loads of duplication in our functions and the functions themselves wouldn't be doing a single thing well, they would be doing multiple things: Generally a bad way to design functions.
+
+### More fun with pipes
+
+But, we can do [interesting things with pipes](https://www.mpjon.es/2022/07/12/keeping-track-with-pipes/).
+One of these will be to handle all the unwrapping and re-wrapping of our `maybe` values for us.
+
+The full definition is:
+
+```{r}
+`%>>=%` <- function(lhs_prime, rhs) {
+  
+  if (!inherits(lhs_prime, "maybe")) {
+    stop("type error")
+  }
+  
+  if (lhs_prime$constructor == "nothing") {
+    nothing()
+  } else {
+    # Regular pipe stuff
+    rhs <- substitute(rhs)
+    lhs <- substitute(lhs_prime$value)
+    kind <- 1L
+    env <- parent.frame()
+    lazy <- TRUE
+    .External2(magrittr:::magrittr_pipe)
+  }
+}
+```
+
+Things to note:
+
+- We first check to make sure we're dealing with `maybe` values when we use this pipe.
+  Fancier languages with fancier type systems would do this for us with their type-checking facilities as part of the language, but us type-paupers have to do it ourselves.
+- Then we check if we are getting a `maybe` value that's a `nothing`.
+  If we are, then whatever the function in the `rhs` is, we know we should be returning `nothing`.
+  A function whose inputs have failed, must surely fail as well.
+- Finally, if we have a `just` value, we pull out the `value` and then do regular pipe stuff from {magrittr}^[I still don't really know how it works yet].
+
+To demonstrate, let's make another tidyverse function into a verison that returns a `maybe`.
+
+```{r}
+mfilter <- function(.data, ...) {
+  tryCatch(just(dplyr::filter(.data, ...)),
+           error = function(e) nothing())
+}
+```
+
+It's to `dplyr::filter()` what `mselect()` was to `dplyr::select()`.
+
+And now we can do things like:
+
+```{r}
+just(penguins) %>>=%
+  mselect(species) %>>=%
+  mfilter(species == "Chinstrap")
+```
+
+And our pipe-chain can fail at any points, but the `nothing` values will be seamlessly propagated through:
+
+```{r}
+just(penguins) %>>=%
+  mselect(mpg) %>>=% # <-- fails here
+  mfilter(species == "Chinstrap")
+```
+
+or
+
+```{r}
+just(penguins) %>>=%
+  mselect(species) %>>=%
+  mfilter(mpg == "Chinstrap") # <-- fails here
+```
+
+We have to start with `just(penguins)` rather than `penguins` as `%>>=%` expects a `maybe` on the left.
+If this bothers you, you could make a new infix pipe that doesn't need a `maybe` on the left and use that as the first pipe.
+
+### Simpler Piping
+
+But we've had to individually redesign all our tidyverse functions.
+I'd prefer not to have to copy and paste them all and make `m*` versions.
+
+Luckily, we don't have to if we notice that `mselect()` and `mfilter()` both follow a similar pattern.
+We can exploit this pattern by making a function factory:
+A new function that will accept a tidyverse function as an argument and make a new version that returns a `maybe`.
+
+```{r}
+mwrap <- function(f) {
+  function(...) {
+    tryCatch(just(f(...)),
+             error = function(e) nothing())
+  }
+}
+```
+
+Note how this function itself returns a function that looks like `mselect()` and `mfilter()` (if you blur your eyes a bit).
+
+This means we can do pipelines like this:
+
+```{r}
+just(penguins) %>>=%
+  mwrap(group_by)(species) %>>=%
+  mwrap(summarise)(bill_length_mm = mean(bill_length_mm, na.rm=TRUE),
+                   bill_depth_mm = mean(bill_depth_mm, na.rm = TRUE)) %>>=%
+  mwrap(mutate)(bill_area = bill_length_mm * bill_depth_mm)
+```
+
+
+And if this fails at any point, we will get a `nothing` back.
+
+## Conclusion
+
+This implementation suffers a bit because R's type system isn't that strong.
+In languages like Haskell, `Maybe`s are used a lot, and the `>>=` syntax is far more powerful than I have implemented here^[because `>>=` is defined for all monads, of which `Maybe` is only a single example].
+
+Is this a useful thing? I don't know, that's up to you.
+
+Is this an interesting thing? Yes, that's up to me, and yes it is.
+
+
+
