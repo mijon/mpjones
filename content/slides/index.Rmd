@@ -13,3 +13,4 @@ I think slides are meant to support a live, in-person talk.
 - Spreadsheets: [slides](/slides/spreadsheets.html), [post](/2021/06/07/it-s-time-to-rethink-our-tools/)
 - Reproducibility using R: [slides](/slides/reproducibility_presentation.html)
 - Basics of data manipulation using the {tidyverse}: [slides](/slides/data_manipulation.html)
+- R's Object Systems (for the first session of the Guernsey R Users Group): [slides](/slides/grug_oo_presentation.html)
