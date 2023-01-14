@@ -1,0 +1,73 @@
+---
+title: C++ Ternary Operator in R
+author: Michael
+date: '2023-01-14'
+slug: c-ternary-operator-in-r
+categories:
+  - R
+tags: []
+---
+
+
+Here's another fun but entirely useless exercise that shows some of the flexibility of R's infix operators.
+C++ (and many other languages) have a ternary if-else operatory. 
+You can write the following:
+
+```c++
+predicate ? value_if_true : value_if_false
+```
+
+"If Predicate then value_if_true, otherwise value_if_false".
+
+In R, we have `ifelse`, or `dplyr::if_else`, and we can also put simple `if` on single lines:
+
+```R
+if (predicate) value_if_true else value_if_false
+```
+
+But if we want, we can abuse the ability to make infix functions as so.
+First we define a two-argument function, `%?%` that takes a predicate on the left, and some expression on the right.
+
+
+```{r}
+`%?%` <- function(lhs, rhs) {
+  rhs_prime <- substitute(rhs)
+
+  list(payload = rhs_prime, predicate = lhs)
+}
+```
+
+We have to `substitute()` the `rhs`, because we don't want R to evaluate that code straight away, we want to be able to make that decision once we've evaluated the predicate.
+
+Our return value is a list with two elements.
+The frozen `rhs` value as `payload` and the predicate value passed in as `lhs`.
+
+Then we define another function, `%:%` that handles the `if` part:
+
+```{r}
+`%:%` <- function(lhs, rhs) {
+  predicate <- lhs$predicate
+
+  if (predicate) {
+    eval(lhs$payload)
+  } else {
+    rhs
+  }
+}
+```
+
+Here, we just unpack the input from the `lhs` and decide which branch to evaluate based on the `predicate`.
+
+In action:
+
+```{r}
+(4 < 10) %?% "lower" %:% "higher"
+(4 > 10) %?% "lower" %:% "higher"
+```
+And because we used `substitute()` we only ever evaluate the value that matches the right branch.
+So if one of the branches raises an error, but we never go down that branch, the expression still works:
+
+```{r}
+(4 > 10) %?% stop("Error never reached") %:% "everything is fine"
+```
+

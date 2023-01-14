@@ -1,0 +1,49 @@
+---
+title: C++ Ternary Operator in R
+author: Michael
+date: '2023-01-14'
+slug: c-ternary-operator-in-r
+categories:
+  - R
+tags: []
+---
+
+
+
+<p>Here’s another fun but entirely useless exercise that shows some of the flexibility of R’s infix operators.
+C++ (and many other languages) have a ternary if-else operatory.
+You can write the following:</p>
+<pre class="cpp"><code>predicate ? value_if_true : value_if_false</code></pre>
+<p>“If Predicate then value_if_true, otherwise value_if_false”.</p>
+<p>In R, we have <code>ifelse</code>, or <code>dplyr::if_else</code>, and we can also put simple <code>if</code> on single lines:</p>
+<pre class="r"><code>if (predicate) value_if_true else value_if_false</code></pre>
+<p>But if we want, we can abuse the ability to make infix functions as so.
+First we define a two-argument function, <code>%?%</code> that takes a predicate on the left, and some expression on the right.</p>
+<pre class="r"><code>`%?%` &lt;- function(lhs, rhs) {
+  rhs_prime &lt;- substitute(rhs)
+
+  list(payload = rhs_prime, predicate = lhs)
+}</code></pre>
+<p>We have to <code>substitute()</code> the <code>rhs</code>, because we don’t want R to evaluate that code straight away, we want to be able to make that decision once we’ve evaluated the predicate.</p>
+<p>Our return value is a list with two elements.
+The frozen <code>rhs</code> value as <code>payload</code> and the predicate value passed in as <code>lhs</code>.</p>
+<p>Then we define another function, <code>%:%</code> that handles the <code>if</code> part:</p>
+<pre class="r"><code>`%:%` &lt;- function(lhs, rhs) {
+  predicate &lt;- lhs$predicate
+
+  if (predicate) {
+    eval(lhs$payload)
+  } else {
+    rhs
+  }
+}</code></pre>
+<p>Here, we just unpack the input from the <code>lhs</code> and decide which branch to evaluate based on the <code>predicate</code>.</p>
+<p>In action:</p>
+<pre class="r"><code>(4 &lt; 10) %?% &quot;lower&quot; %:% &quot;higher&quot;</code></pre>
+<pre><code>## [1] &quot;lower&quot;</code></pre>
+<pre class="r"><code>(4 &gt; 10) %?% &quot;lower&quot; %:% &quot;higher&quot;</code></pre>
+<pre><code>## [1] &quot;higher&quot;</code></pre>
+<p>And because we used <code>substitute()</code> we only ever evaluate the value that matches the right branch.
+So if one of the branches raises an error, but we never go down that branch, the expression still works:</p>
+<pre class="r"><code>(4 &gt; 10) %?% stop(&quot;Error never reached&quot;) %:% &quot;everything is fine&quot;</code></pre>
+<pre><code>## [1] &quot;everything is fine&quot;</code></pre>
