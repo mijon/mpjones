@@ -1,0 +1,359 @@
+---
+title: Composing With Configs
+author: Michael
+date: '2023-01-26'
+slug: composing-with-configs
+categories:
+  - r
+  - functional programming
+tags: []
+---
+
+
+
+<p>There are two things that are important to keep in mind reading this:</p>
+<ol style="list-style-type: decimal">
+<li>Writing pure functions is helpful for a whole load of reasons.</li>
+<li>Being able to compose smaller functions into a larger whole is a really good way to build complex processes</li>
+</ol>
+<p>And a third one:</p>
+<ol start="3" style="list-style-type: decimal">
+<li>Sometimes over-engineering something is fun and helps you learn.</li>
+</ol>
+<p>Today, we’re going to discuss a way to handle a computation that is performed in some environment.
+By “environment”, I mean some set of configuration settings.
+The situation would be that we want to define some process that takes an input and some settings and then manipulates the input with reference to the settings.</p>
+<ul>
+<li>Different input, same settings: different output</li>
+<li>Same input, different settings: also different output</li>
+</ul>
+<p>But the idea is that your settings are conceptually different from your inputs.
+E.g. a config file vs actual data or something like that.</p>
+<p>You could build your environment to be some complex object, but I’m going to simply use a list:</p>
+<pre class="r"><code>e1 &lt;- list(a = 2, b = 4, c = 5)</code></pre>
+<p>Each element of the list is some parameter that we want to have available in our computation.</p>
+<p>But we’d like to do it by composing pure functions.</p>
+<div id="first-steps" class="section level2">
+<h2>First Steps</h2>
+<p>The first and easiest way to take advantage of this environment is to simply define functions that reference their parent scope.
+R is a <a href="https://en.wikipedia.org/wiki/Scope_(computer_science)#R">lexically scoped</a> language.
+Basically, functions in R know where they were <em>defined</em> and can access variables in that location.
+If we define this a function like this:</p>
+<pre class="r"><code>uses_global_variables &lt;- function(x) {
+  x + e1$a
+}</code></pre>
+<p>We take in an argument, <code>x</code>, but also use the <code>a</code> value from <code>e1</code>:</p>
+<pre class="r"><code>uses_global_variables(2)</code></pre>
+<pre><code>## [1] 4</code></pre>
+<pre class="r"><code>uses_global_variables(10)</code></pre>
+<pre><code>## [1] 12</code></pre>
+<p>This has some upsides:</p>
+<p>Firstly, it’s easily composed<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>:</p>
+<pre class="r"><code>uses_global_variables_twice &lt;- purrr::compose(
+  uses_global_variables,
+  uses_global_variables
+)
+
+uses_global_variables_twice(2)</code></pre>
+<pre><code>## [1] 6</code></pre>
+<p>Or perhaps</p>
+<pre class="r"><code>2 |&gt;
+  uses_global_variables() |&gt;
+  uses_global_variables()</code></pre>
+<pre><code>## [1] 6</code></pre>
+<p>Secondly, depending on your context, you could change a value in <code>e1</code>, load it into your session again, and <code>uses_global_variables()</code> would know immediately the new value of <code>a</code> to use.</p>
+<p>But that could also be a downside.
+This reliance on something defined <em>externally</em> to the function means that it’s a <strong>impure</strong> function.
+I.e. it is not a ‘pure function’.</p>
+<p>As a recap, pure functions are functions that:</p>
+<ul>
+<li>Given any particular input, they will always return the same input</li>
+<li>They do not have any ‘side effects’.
+This essentially means that they don’t read/write to files, they don’t have interaction with the user, they don’t throw errors etc.
+Strictly speaking, they wouldn’t even write to a console.</li>
+</ul>
+<p>A heuristic for whether a function is pure is whether you could memoise it.
+Essentially, could you skip calculations and just look the answer up in a big reference table and the caller would be none the wiser?
+Writing as much of your program as you can with pure functions is generally a good strategy since pure functions are easy to reason about.</p>
+<p>Anything pure functions use, they will take in as an argument so all the “entry points” for information are right there in the function definition.
+They rely on nothing that’s outside the function definition (i.e. nothing that can change without redefining the function - you <em>can</em> rely on functions from external libraries etc<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>).</p>
+<p>A pure version of <code>uses_global_variables()</code> would be:</p>
+<pre class="r"><code>takes_e_locally &lt;- function(x, e) {
+  x + e$a
+}</code></pre>
+<p>And this produces the same output as <code>uses_global_variables()</code>, though we also have to pass in the environment <code>e</code>:</p>
+<pre class="r"><code>takes_e_locally(2, e1)</code></pre>
+<pre><code>## [1] 4</code></pre>
+<pre class="r"><code>takes_e_locally(10, e1)</code></pre>
+<pre><code>## [1] 12</code></pre>
+<p>Pure functions are also easier to test.
+If we wanted to test <code>uses_global_variables()</code> against some expected output, we’d need to get an <code>e1</code> from somewhere and inject it in somehow.
+But in contrast, we can test <code>takes_e_locally()</code> simply by passing in some <code>e</code>:</p>
+<pre class="r"><code>testthat::test_that(&quot;takes_e_locally works&quot;, {
+  etest &lt;- list(a = 1)
+  
+  testthat::expect_equal(
+    takes_e_locally(x = 2, e = etest),
+    3
+  )
+})</code></pre>
+<pre><code>## Test passed 😀</code></pre>
+<p>So <code>takes_e_locally()</code> passes the purity test.
+But we’ve just lost something that <code>uses_global_variables()</code> had:
+(convenient) composability.</p>
+<p>As the input to the function is a value and an environment to use, but the output is just a number we can’t compose it the same way:</p>
+<pre class="r"><code>takes_e_locally_twice &lt;- purrr::compose(
+  takes_e_locally,
+  takes_e_locally
+)
+
+takes_e_locally_twice(2)</code></pre>
+<pre><code>## Error in `_fn`(2): argument &quot;e&quot; is missing, with no default</code></pre>
+<p>We’d need to keep passing in the environment to every function we call.
+We <em>could</em> do it like this:</p>
+<pre class="r"><code>takes_e_locally(2, e1) |&gt;
+  takes_e_locally(e1)</code></pre>
+<pre><code>## [1] 6</code></pre>
+<p>But that repetition of <code>e1</code> means we need to pass it to <em>every</em> function in the chain that might need it and it could cause issues if we want to change the reference to some <code>e2</code>, but we forget one <code>e1</code> in the chain.
+It would be better to be able to only pass in the environment config once and have the chain be aware of it, providing it to the functions automatically.</p>
+</div>
+<div id="making-things-more-complicated-to-make-them-simpler" class="section level2">
+<h2>Making things more complicated to make them simpler</h2>
+<p>Bear with me here, things will get a <em>little</em> more complicated before they get simpler, but it’s worth the effort.</p>
+<p>The first thing to notice about <code>takes_e_locally()</code> (a function of two arguments) is that we can re-write this into a function that takes one argument but itself returns another function that takes another argument:</p>
+<pre class="r"><code>takes_e_locally_curried &lt;- function(x) {
+  function(e) {
+    x + e$a
+  }
+}
+
+takes_e_locally_curried(2)(e1)</code></pre>
+<pre><code>## [1] 4</code></pre>
+<p>This is called a <a href="https://en.wikipedia.org/wiki/Currying">curried function</a>.</p>
+<p>As shown above, we can evaluate the function with these double brackets: <code>takes_e_locally_curried(2)</code> produces a function which we then pass <code>e1</code> to and we get back the result.</p>
+<p><code>takes_e_locally_curried(2)</code> essentially defines a computational process that, given some environment, carries out that computational process <em>in the context of that environment</em>.</p>
+<p>We will call this first stage (before passing in an environment) a “reader”, as we get back a function that “reads” from the environment <code>e</code> that we pass it.</p>
+<p>To make it a little easier, and avoid double parentheses, let’s make a function that runs a reader for us:</p>
+<pre class="r"><code>run_reader &lt;- function(reader, e) {
+  reader(e)
+}
+
+my_reader &lt;- takes_e_locally_curried(2)
+
+run_reader(my_reader, e1)</code></pre>
+<pre><code>## [1] 4</code></pre>
+<p>And it’s easy to do the <em>same</em> computational process in another environment:</p>
+<pre class="r"><code>e2 &lt;- list(a = 4, b = 6, c = 7)
+run_reader(my_reader, e2)</code></pre>
+<pre><code>## [1] 6</code></pre>
+<p>Same process, different config, different answer.</p>
+<p>So say we have the following functions:</p>
+<pre class="r"><code>fun_a &lt;- function(x, e) {
+  x + e$a
+}
+
+fun_b &lt;- function(x, e) {
+  x + e$b
+}
+
+fun_c &lt;- function(x, e) {
+  x + e$c
+}</code></pre>
+<p>Remember, we want to be able to build a complex computation out of smaller parts (i.e. we want to use composition) and we don’t want to have to pass <code>e1</code> in each time.</p>
+<p>For now, let’s curry these into corresponding readers:</p>
+<pre class="r"><code>reader_a &lt;- function(x) {
+  function(e) {
+    x + e$a
+  }
+}
+
+reader_b &lt;- function(x) {
+  function(e) {
+    x + e$b
+  }
+}
+
+reader_c &lt;- function(x) {
+  function(e) {
+    x + e$c
+  }
+}</code></pre>
+<p>We are going to define a new pipe that knows how to deal with these reader functions.
+We’ll call this pipe, “bind”.</p>
+<pre class="r"><code>`%&gt;&gt;=%` &lt;- function(lhs, rhs) {
+  function(e) {
+    a &lt;- run_reader(lhs, e)
+    rb &lt;- rhs(a)
+    run_reader(rb, e)
+  }
+}</code></pre>
+<p>This is a little complex, so let’s break it down:</p>
+<ul>
+<li>This is going to be used as an infix function, we’re going to expect a reader on the left hand side (e.g. <code>reader_a(2)</code>) and the rest of the process on the right (some other function relying on the environment, i.e. another reader).</li>
+<li>Note that bind is going to return a function that accepts some environment, i.e. the output will itself be a reader.</li>
+<li>But this isn’t quite like the other readers we’ve already defined:
+<ul>
+<li>once it is passed an environment, it runs the left hand side reader in that environment and stores the value in a variable, <code>a</code>.</li>
+<li>It then creates a new reader with an input of <code>a</code>.</li>
+<li>The return value is this new reader evaluated in the environment passed in to the inner function.</li>
+</ul></li>
+</ul>
+<p>We’ll define one other function first.
+I’d like to call this <code>return</code> for reasons that I won’t go into here, but <code>return</code> is a defined keyword in R, so let’s just stick with <code>pure</code> for now, again for reasons that I won’t go into.</p>
+<pre class="r"><code>pure &lt;- function(x) {
+  function(e) {
+    x
+  }
+}</code></pre>
+<p>This is a way of injecting our input into the reader context.
+Essentially this makes a reader function (a function accepting an environment), that ignores its environment and just returns the value.
+Not that useful in general, but very useful for starting off a composition of readers.</p>
+<p>Let’s take a look at an example:</p>
+<pre class="r"><code>run_reader(pure(2) %&gt;&gt;=% reader_a, e1)</code></pre>
+<pre><code>## [1] 4</code></pre>
+<p>Let’s break down the first argument, i.e. the definition of the reader.
+We know we can rewrite this as:</p>
+<pre class="r"><code>`%&gt;&gt;=%`(pure(2), reader_a)</code></pre>
+<pre><code>## function(e) {
+##     a &lt;- run_reader(lhs, e)
+##     rb &lt;- rhs(a)
+##     run_reader(rb, e)
+##   }
+## &lt;bytecode: 0x55d314742d78&gt;
+## &lt;environment: 0x55d3145e5460&gt;</code></pre>
+<p>Using the definition of <code>%&gt;&gt;=%</code>, this expands to:</p>
+<pre class="r"><code>function(e) {
+  a &lt;- run_reader(pure(2), e)
+  rb &lt;- reader_a(a)
+  run_reader(rb, e)
+}</code></pre>
+<p>We know that <code>run_reader(pure(2), e)</code>, must return <code>2</code>, regardless of the environment, <code>e</code>, as <code>pure</code> ignores the environment and returns the value.
+We substitute:</p>
+<pre class="r"><code>function(e) {
+  a &lt;- 2
+  rb &lt;- reader_a(2)
+  run_reader(rb, e)
+}</code></pre>
+<p>This then boils down to:</p>
+<pre class="r"><code>function(e) {
+  run_reader(reader_a(2), e)
+}</code></pre>
+<p>If we pass in <code>e1</code> as <code>e</code>, we get:</p>
+<pre class="r"><code>run_reader(reader_a(2), e1)</code></pre>
+<pre><code>## [1] 4</code></pre>
+<p>As expected.</p>
+<p>This one is a little more complex:</p>
+<pre class="r"><code>run_reader(pure(2) %&gt;&gt;=% reader_a %&gt;&gt;=% reader_b, e1)</code></pre>
+<pre><code>## [1] 8</code></pre>
+<p>Again, let’s take the reader part:</p>
+<pre class="r"><code>pure(2) %&gt;&gt;=% reader_a %&gt;&gt;=% reader_b</code></pre>
+<p>It turns out that it only works if we have left-associativity i.e. we can parcel it up like</p>
+<pre class="r"><code>(pure(2) %&gt;&gt;=% reader_a) %&gt;&gt;=% reader_b</code></pre>
+<p>but not</p>
+<pre class="r"><code>pure(2) %&gt;&gt;=% (reader_a %&gt;&gt;=% reader_b)</code></pre>
+<p>Luckily, we already know what</p>
+<pre class="r"><code>pure(2) %&gt;&gt;=% reader_a</code></pre>
+<p>gives:</p>
+<pre class="r"><code>function(e) {
+  run_reader(reader_a(2), e)
+}</code></pre>
+<p>Which, for simplicity, I’ll rewrite as:</p>
+<pre class="r"><code>\(e) {reader_a(2)(e)}</code></pre>
+<p>So substituting this in to the definition of <code>%&gt;&gt;=%</code>:</p>
+<pre class="r"><code>function(e) {
+  a &lt;- run_reader(\(e) {reader_a(2)(e)}, e)
+  rb &lt;- reader_b(a)
+  run_reader(rb, e)
+}</code></pre>
+<p>Expanding:</p>
+<pre class="r"><code>function(e) {
+  run_reader(reader_b(reader_a(2)(e)), e)
+}</code></pre>
+<p>Or</p>
+<pre class="r"><code>function(e) {
+  reader_b(reader_a(2)(e))(e)
+}</code></pre>
+<p>Then using the definition of <code>reader_a()</code>:</p>
+<pre class="r"><code>function(e) {
+  reader_b(2 + e$a)(e)
+}</code></pre>
+<p>Then the definition of <code>reader_b()</code>:</p>
+<pre class="r"><code>function(e) {
+  2 + e$a + e$b
+}</code></pre>
+<p>So now we’ve gone through all of that to show our composition of a readers <code>pure(2) %&gt;&gt;=% reader_a %&gt;&gt;=% reader_b</code> is itself a reader function (a function that takes an <code>e</code> environment and evaluates some computation in that environment).
+So:</p>
+<pre class="r"><code>run_reader(pure(2) %&gt;&gt;=% reader_a %&gt;&gt;=% reader_b, e1)</code></pre>
+<p>evaluates to 8 as expected:</p>
+<pre class="r"><code>2 + e1$a + e2$a</code></pre>
+<pre><code>## [1] 8</code></pre>
+</div>
+<div id="cleaning-things-up" class="section level2">
+<h2>Cleaning things up</h2>
+<p>That did get a little complicated.
+Let’s recap where we’ve got to, and why we started in the first place:</p>
+<ul>
+<li>Two things are important:
+<ul>
+<li>pure functions are easier to deal with</li>
+<li>composition is powerful</li>
+</ul></li>
+<li>Without resorting to something fancy, if we want to be able to define a more complex calculation that refers to some config environment, we can have purity but not composition or composition without purity.</li>
+<li>But we curried our function and with a suitable definition of a special pipe infix function, <code>%&gt;&gt;=%</code>, we got both at the expense of having to use <code>run_reader()</code> to run the calculation.</li>
+</ul>
+<p>But I don’t want to have to write all my functions in the curried way.</p>
+<p>I’d prefer to write single level functions, i.e. functions of two arguments and have the pipe handle the currying and uncurrying.
+Luckily, that’s fairly simple with this small addition to <code>%&gt;&gt;=%</code>:</p>
+<pre class="r"><code>`%&gt;&gt;=%` &lt;- function(reader, rhs) {
+  function(e) {
+    a &lt;- run_reader(reader, e)
+    rb = purrr::partial(rhs, a)
+    run_reader(rb, e)
+  }
+}</code></pre>
+<p>Then we can use the uncurried <code>fun_a()</code>, <code>fun_b()</code> and <code>fun_c()</code>:</p>
+<pre class="r"><code>run_reader(pure(2) %&gt;&gt;=% fun_a %&gt;&gt;=% fun_b, e1)</code></pre>
+<pre><code>## [1] 8</code></pre>
+<p>The final thing we want to do is allow functions that don’t take a the environment.
+At the moment, we get an error:</p>
+<pre class="r"><code>just_adds_1 &lt;- function(x) {
+  x + 1
+}
+
+run_reader(pure(2) %&gt;&gt;=% just_adds_1 %&gt;&gt;=% fun_b, e1)</code></pre>
+<pre><code>## Error in (function (x) : unused argument (list(2, 4, 5))</code></pre>
+<p>Because we’re trying to force the environment into the function where there’s no where for it to go.</p>
+<p>We need to write a handler for this function</p>
+<pre class="r"><code>wrapper &lt;- function(f) {
+  function(x, e) {
+    f(x)
+  }
+}
+
+run_reader(pure(2) %&gt;&gt;=% wrapper(just_adds_1) %&gt;&gt;=% fun_b, e1)</code></pre>
+<pre><code>## [1] 7</code></pre>
+</div>
+<div id="why-not-just-use-with" class="section level2">
+<h2>Why not just use <code>with</code>?</h2>
+<p>We could have done this:</p>
+<pre class="r"><code>with(list(e = e1),
+     2 |&gt;            # pure(2) %&gt;&gt;=%
+     fun_a(e) |&gt;     # fun_a
+       fun_b(e))     # fun_b</code></pre>
+<pre><code>## [1] 8</code></pre>
+<p>Which sort of lets us compose (at least in the pipe way, if not the mathematical, point-free way), and means there’s only one place to change the <code>e</code>.
+It’s also simpler to read, as you only need to get your head around <code>with</code> rather than <code>%&gt;&gt;=%</code> etc.</p>
+<p>For actual use, probably go with <code>with</code> or some other system for managing global configs.</p>
+<p>But you should have learned by now that coming here for useful tips won’t always work out that way.
+Playing around with functions and evaluation and pipes exposes interesting new ways to program.
+This post was inspired by the Reader monad in Haskell.
+And it wasn’t really until I started reading <a href="https://bartoszmilewski.com/about/">Bartosz Milewski’s</a> book <a href="https://github.com/hmemcpy/milewski-ctfp-pdf">Category Theory for Programmers</a> and tried to implement it in R that I really started to get how it worked.
+Disclaimer: I’m sure someone more knowledgeable about it than I am can find some misunderstanding or some subtlety I’ve missed, so don’t take Reader monad advice from this blog, do your own research!</p>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p><code>purrr::compose()</code> takes several functions and “stitches” them together, i.e. given an <code>f1</code> and and <code>f2</code>, it creates a new function that accepts input, passes it to <code>f1</code>, then passes the output of <code>f1</code> into <code>f2</code> and then returns the output of <code>f2</code>. <code>purrr::compose(f1, f2)</code> is expressed in maths as <span class="math inline">\(f_2 \circ f_1\)</span>, or in words, “f2 after f1”<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>strictly speaking, only if those functions are themselves pure. A function that calls an impure function cannot itself be pure.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
