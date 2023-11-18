@@ -13,33 +13,34 @@ tags: []
 A few weeks ago, I attended GIRO, the IFoA's General Insurance conference. 
 It was my first GIRO and generally I found it very thought-provoking. 
 
-There were a range of topics presented, but a major theme running through the conference was that Data Science and artificial intelligence^[One excellent talk was on what we really mean when we say 'artificial intelligence'. I agreed with much of what the speaker had to say.]. 
+There were a range of topics presented, but a major theme running through the conference was that of Data Science and artificial intelligence^[One excellent talk was on the need to really define what we really mean when we say 'artificial intelligence'. I agreed with much of what the speaker had to say.]. 
 
-My favourite session was a talk from [Thomas Hamilton](https://www.lambdadtd.com/about)^[While I only looked at his company's website after the talk, it's pretty representative of his presentation that there's an explanation of the lambda calculus on his front page...]. 
+My favourite session was a talk from [Thomas Hamilton](https://www.lambdadtd.com/about)^[While I only looked at his company's website after the talk, it's pretty representative of his presentation in that there's an explanation of the lambda calculus on his front page...]. 
 It was entitled "Building Systems that Last" and Hamilton spoke to the emerging (or perhaps crystallising) role of the actuary as a systems builder. 
-He spoke on a range of specifics, like database design, domain driven design, thinking with types, and how to name things.
+He spoke on a range of specifics, but key themes included database design, domain driven design, thinking with types, and how to name things.
 
 At the end of the talk I asked a question along the lines of 'given how much you've spoken about Types, domain driven design, and system safety, I'd be interested in your view on whether the actuarial profession should favour languages like F#, Julia, and Rust, over languages like Python and R'.
-And even if he did have some negative views on using R in production, his response was interesting, but I took his view (and it's been a while since the presentation, so I may not be doing it justice) to be around Python + type annotations is probably fine.
+And even if he did have some negative views on using R in production, his response was interesting, but I took his view (and it's been a while since the presentation, so I may not be doing it justice) to be that he still favoured current systems with Python's type annotations is probably fine.
 
 But it left me thinking: As some actuaries start to build more complex systems, are we actually using the right tools to do so? Are the right tools out there already? What would the ideal tool look like?
 
 # Lay of the land
 
-Since the 2019 curriculum change, all student actuaries sitting the IFoA exams will have at least some exposure to programming in R (though I have my reservations about the content of those exams, that's a discussion for another time).
-Many companies will have more experienced actuaries with knowledge of R already, or perhaps Python, or a deep understanding of SQL or whatever.
+Since the 2019 curriculum change, all student actuaries sitting the IFoA exams will have at least some exposure to programming in R (though I have my reservations about the form of those exams, that's a discussion for another time).
+Many companies will also have more experienced actuaries with knowledge of R already, or perhaps Python, or a deep understanding of SQL or whatever, so there's many actuarial programmers out there.
 
 But while Python and R are friendly languages to work in, I think there are legitimate criticisms of both in large scale 'production' systems.
 Don't get me wrong, I think it's possible to use both in production, but it requires an additional layer of considerations to do so effectively.
 
-I know of at least one large consultancy that uses F# extensively. 
-I've also found it interesting that trading giant Jane Street uses OCaml almost exclusively^[Hear it from them directly: https://blog.janestreet.com/why-ocaml/], and for many of the reasons that I will talk about below.
-There's also stories of the old days when APL was a language of actuaries, though I think you'll struggle to find many people calculating their Solvency II capital with APL these days.
+But it's not all Python and R; I know of at least one large consultancy that uses F# extensively. 
+I've also found it interesting that trading giant Jane Street uses OCaml almost exclusively^[Hear it from them directly: https://blog.janestreet.com/why-ocaml/], and they do so for many of the reasons that I will talk about below.
+There's also stories of the old days when APL was the language of choice for actuaries, though I think you'll struggle to find many people calculating their Solvency II capital with APL these days.
 
-And obviously, you have companies using specific tools for running calculations like Tyche, Remetrica, Igloo and the rest.
+And obviously, you have companies using specific tools for running certain types of calculations.
+Tools like Tyche, Remetrica, Igloo and the rest.
 
-But no matter what mainstream language actuaries use currently, we're making do with tools for other uses. 
-I think it would be fun to think about what an ideal tool would look like.
+But no matter what mainstream language actuaries use currently, we're still making do with tools designed primarily for other uses. 
+I think it would be fun to think about what an ideal language for actuaries would look like.
 
 I'm not advocating for anyone to actually build this language, but by thinking about what features would be useful, it can help select the right tool from what is available now.
 
@@ -51,7 +52,7 @@ This one's going first in the list for a reason.
 
 Since I started learning Haskell and later Rust, there's been one key feature that I wish I had available in other languages: A proper sum type.
 
-Most languages will have product types:
+Most languages have product types:
 These are ways of combining a collection of values into a single block to carry around.
 For example, we could make a data structure to represent a pension.
 This data structure would have things like 
@@ -65,28 +66,29 @@ And so on.
 Now, to make an instance of the `Pension` data structure, you have to provide a value for each of the fields.
 And so the total number of unique possible instances is related to the total number of each possible value:
 
-Number of `Pension` objects = Number of possible Names * number of possible dates of birth etc...
+Number of `Pension` objects = Number of possible Names *multiplied by* number of possible dates of birth *multiplied by* etc...
 
 Hence why it's called a "product type".
 Product types can be thought of as a value of one type **and** a value of another **and** a value of another etc:
 a `Pension` is a name **and** a date **and** a sex.
 
 But only some languages offer a sum type. 
-This is a type that can be one of a range of possible values.
-Think of them as a value of one sort **or** a value of another.
+
+This is a type that is **one** of a range of possible values.
 
 In the above example, actually, there's a key feature that lends itself well to sum types: Sex^[I will assume a binary classification of sex here, simply for modelling purposes. Models are always pale imitations of our richer, more nuanced, reality].
 If we model sex as a binary, then clearly using an integer or a string means that we have to do a lot more checking as *at the level of types*, a string could be any collection of characters, an integer any number, beyond the subset of values we assign meaning to (i.e. sure we can have "M" and "F" to encode the sex of our pensioner, but the structure of the program doesn't preclude putting in any other string).
 
-If we want to protect against bad data, then we will need to keep checking (possibly at multiple stages) that we are dealing with a string that is valid in our domain.
+Without sum types, if we want to protect against bad data we will need to keep checking (possibly at multiple stages) that we are dealing with a string that is valid in our domain.
 That is, **we** will have to check that as the authors of the code, we can't leave it up to the computer.
 
 However, if we can encode into the type system that `sex` can only take on a limited number of values, then we can be sure that if we have a value of `sex`, we know the finite number of cases to deal with.
 
 We can make better systems because we can constrain the possible values of our types, and use automated tools to check these types are being used correctly.
 
-ADTs provide you with tools to model more closely to the domain.
+ADTs also provide you with tools to model more closely to the domain.
 Generally languages with ADTs have simple ways to define them, i.e. not cluttered up with too much programming.
+Here are a few examples of defining a sum type (also known as an "enum"):
 
 e.g. in Haskell
 
@@ -109,9 +111,11 @@ enum LineOfBusiness = {
 This means that you can quite easily show your type definitions to a non-coder who is a domain expert and they can easily spot if anything is missing.
 This is a key point in [Domain Modelling Made Functional](https://pragprog.com/titles/swdddf/domain-modeling-made-functional/).
 
+Systems are better when non-coder system-experts can easily get involved in the design.
+
 ## Powerful Type System
 
-That leads me on to the next desirable feature, static typing.
+That leads me on to the next desirable feature; support from the typ system itself.
 
 Languages like R and Python are dynamically typed.
 That means that functions can accept values of a range of types automatically and they are coerced behind the scenes.
@@ -119,11 +123,12 @@ It's the "if it walks like a duck and quacks like a duck, then it's a duck" idea
 
 This leads to faster development time because you don't have to fight with a type checker or write type annotations, but your functions only know what sort of values you get at runtime.
 
-With static typing, however, you have to state all the types that your function works with in advance.
+With static typing, however, you have to state all the types that your function works with in advance (or a compiler has to infer the types from the way you use the functions).
+Static types mean that once an object is a type, it's not changed into another without a specific function handling that, and the computer knows what all type all the data are at any point.
 While this constrains you, it also constrains the types of errors you can get.
 
 It also means that you can be warned if you haven't accounted for all possible cases.
-Rust, Haskell, and other languages will shout at you if you write a function that takes a sum type and does something different for each branch, but you don't write a case for all the branches.
+Rust, Haskell, and other languages will shout at you if you write a function that takes a sum type and does something different for most branches, but you don't write a case for all the branches.
 
 E.g. if you have a sum type that defines each possible head of damage a policy can have claims under, and you write a function that will do something different depending on each head of damage, it would be a nice feature for the language to let you know when you've missed a HoD from your logic.
 Even better if later on you add a HoD and the computer tells you all of the places in your code you have to handle this new case before you ever run the program.
@@ -132,11 +137,12 @@ This is possible in a language that has strong static analysis features.
 Static typing helps you find your mistakes before a user uses your program. 
 It helps you ensure that the system you build has covered all the corner cases.
 
-An option would be Julia's paradigm of overloaded functions and multiple dispatch.
+Another option would be Julia's paradigm of overloaded functions and multiple dispatch.
+Note that Julia is a dynamic language, it's just a bit more type-focused than others. 
 It's very easy in Julia to define functions that work on very specific sets of types, alongside functions that work on a wider, more general set.
 
-As an example of how this might be useful, consider money in multiple currencies.
-A common approach might be to store this in a two column data frame (currency label as a string and amount as a float or integer), or perhaps in a two element tuple.
+As an example of how this might be useful, consider working with money values in multiple currencies.
+A simple approach might be to store this in a two column data frame (currency label as a string and amount as a float or integer), or perhaps in a two element tuple.
 However, when you have Julia's system you can encode the currency into the types.
 
 ```julia
@@ -179,6 +185,7 @@ gbp2 = Gbp(200)
 add_currency(gbp1, gbp2)
 # Gbp(300)
 ```
+
 But if we do the following we'll get an error:
 
 ```julia
@@ -197,7 +204,8 @@ add_currency(gbp1, usd1)
 ```
 
 See, we've **encoded in the type system** the idea that adding the value of two different currencies doesn't make sense.
-Likewise, if you try to multiply two currencies (even if they are the same), we have not written any code to do that, and so you will get an error: Handy as it makes no sense to multiply currencies, so we should build systems where you just cannot do that.
+Likewise, at the moment you can't multiply two currencies (even if they are the same) since we have not written any code to do that, and so you will get an error: Handy as it makes no sense to multiply currencies, so we should build systems where you just cannot do that.
+If we were using plain number values to model currencies, there would be no such limitations.
 That's what makes this approach superior to just using basic numeric types and hoping for the best: the type system stops you from representing things that don't make sense.
 
 Aside: If we wanted to be fancy, we could have overloaded the `Base.:+` function, so we could just write `gbp1 + gbp2` and get back a `Gbp` typed value.
@@ -222,38 +230,41 @@ You enter some code, the computer reads it, evaluates it, and prints the respons
 This REPL-driven approach is key for a data science language. 
 The ability to try calculations out, explore data and plots is vital to actuarial work.
 
-So I would like an approach like Haskell: Have a REPL available as a key part of the workflow, but when we want, we can compile to an executable that doesn't require the language run time to execute.
+So I would like an approach like Haskell: Have a REPL available as a key part of the workflow, but when we want, we can compile to an executable that doesn't require the language run time to execute and is optimised for performance.
 
 ## Fast for Numerical Calculations
 
 Actuaries are required to build more and more complex models that output results in shorter and shorter time frames.
 
-Capital modelling for general insurers' internal models are simulation models at their heart, but to get reliable results, you need to be simulating around 100,000 simulations minimum.
+Capital modelling for general insurers' internal models in particular are demanding simulation models, but to get reliable results, you need to be simulating around 100,000 simulations minimum.
 It's not unheard of for several million simulation paths to be needed.
 
 That means that calculations need to run fast. But Python and R are not fast.
 
 It's common for general insurers to use proprietary systems and languages for capital models, and Aviva [used Julia](https://juliahub.com/case-studies/aviva/) for their Solvency II model.
 
-Just being compiled doesn't necessarily mean it's a fast language, but this hypothetical actuarial language would have to be fast.
+Just being compiled doesn't necessarily mean it's a fast language, but this hypothetical actuarial language would have to be designed to be fast.
 
-That would also require decent array manipulation features.
-Perhaps some sort of in-build APL DSL would be useful. 
+We would also want decent array manipulation features.
+Perhaps some sort of in-build APL DSL would be useful, though perhaps not popular. 
 
 ## Modules
 
-In R, there are no private functions, or private fields of a data structure.
+In R, there are no private functions or private fields of a data structure.
 There are functions that aren't exported from a package, but those are just three colons away from the user.
 This has pros and cons.
 
 Some of the pros include:
+
 - If the developer hasn't made a getter for some piece of data buried deep in the data structure you're using, there's no problem, you can just delve in there and get it yourself
 - Many things are implemented just as lists, so you can always use the list accessing methods you already know.
 - If you need to use an internal function that a package uses but doesn't export (e.g. it does part of an exported process, but exactly the sub-part you want to do elsewhere {e.g. `reprex::prex()`}), you can just grab that^[In R, the implied condition here is that you accept all the problems if things go wrong. By not exporting the function, the package developer clearly signalled that you weren't meant to use that, and they reserve the rights to change it or delete it whenever they want without warning.].
 
 The cons include:
+
 - You can't hide implementation details, so you get leaky abstractions
 - You can't enforce conditions that certain types are *only* created with a constructor that checks the inputs. For example, in R, a linear model is *anything* with a `class` attribute vector containing the string `"lm"`. That means anyone can create malformed objects.
+- If you want to write a function that's only relevant in a single sub-part of your program, you don't really have a way to enforce that.
 
 If we're building systems that are meant to last and be robust, we need a way to delineate between public code (i.e. that other parts of the program or the user may interact with) and private code (e.g. helper functions that should only be called by other code within a certain conceptual boundary). 
 Many languages do this with modules where the developer may export only a subset of data structures and functions, keeping the rest inaccessible from outside the module.
@@ -263,26 +274,25 @@ Overall, I think this makes code more stable as it limits the unexpected behavio
 ## At the right level of Abstraction
 
 I've been learning Rust a bit recently. 
-I like it, but it would be a bad pattern for wide-scale actuarial use.
+I like it, but I wouldn't think it's appropriate for wide-scale *actuarial* use.
 It's too low level for what actuaries need to do.
 
 Actuarial programmers shouldn't need to worry about how values are stored in memory.
-There should be access hatches available to tweak *if needed*, but it shouldn't be so top-of-mind as it is for Rust developers. 
+There should be access hatches available to tweak *if needed*, but it shouldn't be so top-of-mind as it is for Rust developers --- they need to do certain things with their language, we need to do other things.
 
 Instead, the most common layer of working should be at the layer of the domain, or one step down in data structures like vectors, lists and data frames.
 
 ## Batteries Included
 
 The concept of the data frame started in S and R, entered the Python world with pandas, and now almost every data science platform will work in data frames.
-
 Actuaries tend to work mostly with structured, tabular data. 
 Having a data frame in the language as standard is an absolute must.
-It shouldn't be in a library, but rather a core part of the language; data frames should be available right from when you open the IDE to get to work (as they are in R).
+It shouldn't be in a library, but rather a core part of the language; data frames should be available right from when you open the IDE to get to work (as they are in R)^[i.e. not just in the standard library, but in the prelude].
 
 Similarly, statistical functions and distributions should be available without calling any other code.
-This should include all the standard distributions in R, but also fat tailed distributions like th pareto.
+This should include all the standard distributions in R, but also fat tailed distributions like the pareto.
 
-Additionally, a dedicated time series data structure should also be available without extra libraries. 
+Additionally, a dedicated time series data structure should also be available in the standard library. 
 
 This isn't intended to be a general-purpose language.
 The features that an actuary needs should be at their finger tips.
@@ -290,14 +300,16 @@ The features that an actuary needs should be at their finger tips.
 I'd also want to see native integration with Excel (no more {rJava}, please).
 This should cover reading data from Excel, but also writing data to Excel in a way that doesn't mess up an existing spreadsheet.
 Ideally you would be able to reach into a spreadsheet and have a code-based way of manipulating anything you could usually by opening up Excel properly.
+
 Unfortunately, Excel is here to stay, but perhaps there are better ways to work with it.
+If you can automate changes to an Excel spreadsheet automatically and interact with it in a hands-off, abstracted way, without opening it all the better.
 
 Hopefully, though, Excel's use will diminish and more actuaries will be comfortable working with databases.
 Therefore, it should be easy to connect to, read from, and write to a database.
 I love R's {dbplyr} integration with data bases; writing the same code to query a database as I write to query local data frame is a wonderful user experience.
 And while I've not learnt too much about it, Rust's promise of *compile-time* type-checked SQL queries is really intriguing.
 
-Finally, no actuarial languge would be complete without native data visualisation features.
+Finally, no actuarial language would be complete without native data visualisation features.
 I'd like to see a grammar of graphics approach be the primary way of producing graphics.
 I've often said I've never seen a better graphing library than {ggplot2}, I'd like something similar in the actuarial language.
 
@@ -310,7 +322,6 @@ There should be a robust package management system in place.
 It should be easy to install and incorporate code from other people.
 
 I would, of course, prefer that all development in this language would be open source, but it would be likely that individual companies would want to develop their own, in-house, code.
-
 Any package manager would need to be able to pull packages from public repositories *and* internal, private ones.
 It should be seamless.
 
@@ -327,10 +338,12 @@ We need to be able to return to a project carried out a few years ago, but still
 
 I like how Julia does this with the `manifest.toml` file, or the ease of having something like `cargo` when working in Rust.
 I'd like to see a similar system, where we can note down all the packages used, along with the specific version of the package and save that persistently, that also handles building or running our program and handles loading everything into a REPL for interactive development.
-
 This should be a built-in feature and not like R's `renv` package or whatever Python is using these days.
 
-Robust project management and versioning of dependencies really is a requirement for compliance with Actuarial Standards, in my view.
+On top of that, I'd like to see a standard library implementation of DAG based workflow management like {targets} in R, or Luigi in Python. 
+A data project build system.
+
+Robust project management, versioning of dependencies, and reproducible workflow tools really are requiremented for compliance with Actuarial Standards, in my view.
 
 ## Documentation
 
