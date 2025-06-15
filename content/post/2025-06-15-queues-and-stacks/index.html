@@ -1,0 +1,273 @@
+---
+title: Queues and Stacks
+author: Michael
+date: '2025-06-15'
+slug: queues-and-stacks
+categories:
+  - R
+tags:
+  - advent-of-code
+---
+
+
+
+<p>Hello, it’s been a while.</p>
+<p>Anyway, here’s a post about data structures.</p>
+<p>If all you have is a hammer, every problem’s a nail.
+If all you have is R, then it’s tempting to attack every problem with a data.frame.</p>
+<p>The data.frame occupies such a central place in R’s ecosystem and so much tooling has been created around it, that I often find myself squashing a problem into a form that favours a data.frame-based solution rather than using a better tool, more suited to the problem.
+There are other data structures that can make one’s life easier.</p>
+<div id="recap-of-rs-main-data-structures" class="section level2">
+<h2>Recap of R’s main data structures</h2>
+<p>As well as the data.frame, R has a small core of data structures available, including</p>
+<ul>
+<li>The vector</li>
+<li>The matrix and array</li>
+<li>The list</li>
+<li>The factor</li>
+</ul>
+<p>Vectors are 1-dimensional arrays of values of a single type.
+The matrix allows 2-dimensional data arranged rectangularly, but still requires all elements to be the same type.
+The array allows n-dimensions, with n=2 being a matrix.
+Older R code tends to make extensive use of matrices and arrays, though this has fallen out of fashion recently to the point that older R packages can look quite unusual.</p>
+<p>The list allows elements to be of any type, and so also allows nesting for some approximation of multi-dimensionality.
+One can think of a data.frame as a list of vectors of the same length.</p>
+<p>Finally, the factor is a very R data structure.
+It neatly encodes the concept of categorical variables (and by extension ordered variables) and shows R’s rich statistical pedigree.</p>
+<p>But R does lack some ‘fundamental’ computer science data structures natively.</p>
+<p>In this post I will talk about one way to implement stacks, queues, and deques.</p>
+</div>
+<div id="stacks-and-queues" class="section level2">
+<h2>Stacks and Queues</h2>
+<p>Stacks and Queues are collection concepts, where items are added to the collection and are removed from the collection.
+The differences is in what order the items leave.</p>
+<p>A stack is analogous to a pile of playing cards.
+You can add a card to the top of the pile, and you can take the top card off the pile.
+Adding the Ace of Hearts, then the Jack of clubs, then the Queen of diamonds in order, means that you need to take the Queen off before you can take the Jack off.
+It’s a “last in, first out” data structure.</p>
+<p>Whereas, the queue should be intimately familiar to most people.
+Especially the British.
+Items join the back of the queue, and leave from the front.
+So it’s a “first in, first out” data structure.</p>
+<p>For both of these structures, when we add an item we say that we “push” it onto the stack/queue, and when we take an item off, we “pop” it.</p>
+<p>Finally, a data structure that allows you to push to either end or to pop from either end is a “deque”.</p>
+</div>
+<div id="function-environments" class="section level2">
+<h2>Function Environments</h2>
+<p>Let’s take the time to be very specific about the interface and actions we want for our stack.</p>
+<p>We want to be able to initialise it, either empty or with a pre-loaded set of values.
+Then we want to be able to push an item onto the stack, and get the new stack back.</p>
+<p>But when we pop from the stack, we want our function to return the item that’s popped, but change the stack in the background.</p>
+<p>This means that we need to implement a data structure that has some state.</p>
+<p>There are a few ways to do this, the most obvious being to use one of R’s encapsulated object systems, but we can also abuse how functions work to make a sort of ‘poor man’s OO’.
+The reason is that functions in R are really <strong>closures</strong>, i.e. code that <em>encloses</em> an environment.
+Generally, they enclose (or point to) the Global Environment, but we can always create a function that points to a specific environment.</p>
+<p>A simple example is that of a counter.
+Rather than storing a counter value in a global namespace and then acting on it with a function that edits this global value, we can put the value inside the environment of the function.
+As each function gets its own environment in which to store its state, we can have as many counters as our memory allows without having to come up with new variable names for the states:</p>
+<pre class="r"><code>counter &lt;- function(init) {
+  value &lt;- init
+  
+  inc &lt;- function() {
+    value &lt;&lt;- value + 1
+    value
+  }
+  
+  list(
+    inc = inc
+  )
+}</code></pre>
+<p>Here we make a function called <code>counter</code> that just accepts a value to initialise on.
+Inside <code>counter</code>, we define a function called <code>inc</code> that increments the value, using <code>&lt;&lt;-</code> to make sure that we edit the value of <code>value</code> not inside the scope of <code>inc</code>, but inside the scope of <code>counter</code>.
+Then we return a list from <code>counter</code> that just contains the <code>inc</code> function.
+We use it as so:</p>
+<pre class="r"><code>a &lt;- counter(0)
+
+a$inc()</code></pre>
+<pre><code>## [1] 1</code></pre>
+<pre class="r"><code>a$inc()</code></pre>
+<pre><code>## [1] 2</code></pre>
+<pre class="r"><code>a$inc()</code></pre>
+<pre><code>## [1] 3</code></pre>
+<p>If we also initialse another counter, and increment it, we see they are totally independent:</p>
+<pre class="r"><code>b &lt;- counter(100)
+b$inc()</code></pre>
+<pre><code>## [1] 101</code></pre>
+<p>And we can access the current value of the state using the <code>environment()</code> function:</p>
+<pre class="r"><code>environment(a$inc)</code></pre>
+<pre><code>## &lt;environment: 0x5feed21f0eb0&gt;</code></pre>
+<pre class="r"><code>environment(a$inc) |&gt; ls()</code></pre>
+<pre><code>## [1] &quot;inc&quot;   &quot;init&quot;  &quot;value&quot;</code></pre>
+<pre class="r"><code>environment(a$inc)[[&quot;value&quot;]]</code></pre>
+<pre><code>## [1] 3</code></pre>
+</div>
+<div id="implementing-a-queue" class="section level2">
+<h2>Implementing a Queue</h2>
+<p>Now we’re ready to implement a queue.
+We need the following features:</p>
+<ul>
+<li>A way to initialise the queue</li>
+<li>A way to push items onto the queue</li>
+<li>A way to pop items off the queue (accessing what we pop)</li>
+<li>A way to get the length of the queue</li>
+<li>A way to get the all the values in the queue</li>
+</ul>
+<p>We will proceed with a similar function-based pattern as above, so each of these requirements (except initialisation) will be represented as a function that’s returned as an element in the list returned from the main <code>queue</code> function:</p>
+<p>The code is reasonably simple:</p>
+<pre class="r"><code>queue &lt;- function(v) {
+  env &lt;- new.env()
+  assign(&quot;values&quot;, value = v)
+  
+  give &lt;- function() {
+    get(&quot;values&quot;, env)
+  }
+  
+  pop &lt;- function(n = 1) {
+    values &lt;- give()
+    output &lt;- head(values, n)
+    assign(&quot;values&quot;, value = tail(values, -n),
+           envir = env)
+    output
+  }
+  
+  push &lt;- function(x) {
+    new &lt;- append(give(), x)
+    assign(&quot;values&quot;, value = new,
+           envir = env)
+  }
+  
+  len &lt;- function() {
+    length(give())
+  }
+  
+  list(
+    get = give,
+    pop = pop,
+    push = push,
+    len = len
+  )
+}</code></pre>
+<p>The first two lines make a new environment called <code>env</code>.
+We do this so it gives us a named environment that we can refer to in the later functions.
+It is inside <code>env</code> that we place the values using the <code>assign</code> function, which is a fancier version of <code>&lt;-</code> assignment where we also get to specify the environment that the assignment happens in.</p>
+<p>Then we define our functions.
+<code>give</code> is a convenience function that <code>get</code>s the values from our pocket environment.</p>
+<p><code>pop</code> is the implementation of getting 1 (by default) or more values out of the queue.
+First we get the values out using <code>give</code>.
+Then we make out output, which is the first <code>n</code> values of the queue.
+Then we re-assign the value of the queue to be the original queue without the values we just popped off.</p>
+<p><code>push</code> is the implementation of adding values to the queue.
+We just reassign the “values” inside the queue to be the concatenation of the new values with what was there before.</p>
+<p>Finally <code>len</code> is simply the number of items in the queue.</p>
+<p>The output is a list of these functions and we can use them as follows:</p>
+<pre class="r"><code>my_queue &lt;- queue(letters[1:5])
+my_queue$get()</code></pre>
+<pre><code>## [1] &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;d&quot; &quot;e&quot;</code></pre>
+<p>push some more letters onto the queue:</p>
+<pre class="r"><code>my_queue$push(c(&quot;F&quot;))</code></pre>
+<p>which just does it’s thing silently, so let’s check:</p>
+<pre class="r"><code>my_queue$get()</code></pre>
+<pre><code>## [1] &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;d&quot; &quot;e&quot; &quot;F&quot;</code></pre>
+<p>And we see that “F” has joined the back of the queue.</p>
+<p>Then we can get the first item out the front of the queue:</p>
+<pre class="r"><code>my_queue$pop()</code></pre>
+<pre><code>## [1] &quot;a&quot;</code></pre>
+<p>which <strong>does</strong> return a value.
+And we see that the queue has changed:</p>
+<pre class="r"><code>my_queue$get()</code></pre>
+<pre><code>## [1] &quot;b&quot; &quot;c&quot; &quot;d&quot; &quot;e&quot; &quot;F&quot;</code></pre>
+</div>
+<div id="stacks" class="section level2">
+<h2>Stacks</h2>
+<p>Stacks are similar, except our push implementation just needs to add to the front, rather than the back.
+So we’d have</p>
+<pre class="r"><code>push &lt;- function(x) {
+  new &lt;- append(x, give()) # &lt;-- note the order change
+  assign(&quot;values&quot;, value = new, envir = env)
+}</code></pre>
+<p>instead.</p>
+</div>
+<div id="deques" class="section level2">
+<h2>Deques</h2>
+<p>With a deque, we want to be able to push to either the front or the back, and also pop from both sides.</p>
+<p>The implementation is straight forward, but just invovles a few more functions:</p>
+<pre class="r"><code>deque &lt;- function(values) {
+  
+  env &lt;- new.env()
+  assign(&quot;values&quot;, value = values)
+  
+  give &lt;- function() {
+    get(&quot;values&quot;, env)
+  }
+  
+  pop_front &lt;- function(n = 1) {
+    values &lt;- give()
+    output &lt;- head(values, n)
+    assign(&quot;values&quot;, value = tail(values, -n), envir = env)
+    output
+  }
+  
+  pop_back &lt;- function(n = 1) {
+    values &lt;- give()
+    output &lt;- tail(values, n)
+    assign(&quot;values&quot;, value = head(values, -n), envir = env)
+    rev(output)
+  }
+  
+  push_front &lt;- function(x) {
+    new &lt;- append(x, give())
+    assign(&quot;values&quot;, value = new, envir = env)
+  }
+  
+  push_back &lt;- function(x) {
+    new &lt;- append(give(), x)
+    assign(&quot;values&quot;, value = new, envir = env)
+  }
+  
+  len &lt;- function() {
+    length(give())
+  }
+
+  output &lt;- list(
+    get = give,
+    pop_front = pop_front,
+    pop_back = pop_back,
+    push_front = push_front,
+    push_back = push_back,
+    len = len
+  )
+  class(output) &lt;- &quot;deque&quot;
+  output
+}
+
+print.deque &lt;- function(d) {
+  print(d$get())
+}</code></pre>
+<p>And here I’ve implemented this as an S3 class, so we can make a nice looking <code>print</code> representation (and could be a neater way to implement <code>length</code>, i.e. as <code>length(my_deque)</code> rather than <code>my_deque$len</code>).</p>
+<pre class="r"><code>my_deque &lt;- deque(letters[1:5])
+my_deque</code></pre>
+<pre><code>## [1] &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;d&quot; &quot;e&quot;</code></pre>
+<p>Push “Z” to the front, then “F” to the back:</p>
+<pre class="r"><code>my_deque$push_front(&quot;Z&quot;)
+my_deque$push_back(&quot;F&quot;)
+my_deque</code></pre>
+<pre><code>## [1] &quot;Z&quot; &quot;a&quot; &quot;b&quot; &quot;c&quot; &quot;d&quot; &quot;e&quot; &quot;F&quot;</code></pre>
+<p>Then we can pop two off the front, and one off the back:</p>
+<pre class="r"><code>my_deque$pop_front(n = 2)</code></pre>
+<pre><code>## [1] &quot;Z&quot; &quot;a&quot;</code></pre>
+<pre class="r"><code>my_deque$pop_back(n = 1)</code></pre>
+<pre><code>## [1] &quot;F&quot;</code></pre>
+<p>Giving us</p>
+<pre class="r"><code>my_deque$len()</code></pre>
+<pre><code>## [1] 4</code></pre>
+<p>Four items left, which are:</p>
+<pre class="r"><code>my_deque</code></pre>
+<pre><code>## [1] &quot;b&quot; &quot;c&quot; &quot;d&quot; &quot;e&quot;</code></pre>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>By using R’s function environments, it doesn’t take a huge amount of code to implement these data structures.</p>
+<p>I’m not sure how performant they are: you’d likely get a better result if you were to use something like Rcpp or Rextendr to ‘borrow’ C++ or Rust implementations of these data structures, but where’s the fun in that?</p>
+<p>Likewise, the pattern of environments and functions that return list of functions that act on those environments (like the <code>counter</code> example) is one way to set up some form of encapsulated state.
+This could be useful in, e.g. an agent based model or similar simulations.</p>
+</div>

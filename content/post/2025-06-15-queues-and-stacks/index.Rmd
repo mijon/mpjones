@@ -31,7 +31,7 @@ As well as the data.frame, R has a small core of data structures available, incl
 
 Vectors are 1-dimensional arrays of values of a single type.
 The matrix allows 2-dimensional data arranged rectangularly, but still requires all elements to be the same type.
-The array allow's n-dimensions, with n=2 being a matrix. 
+The array allows n-dimensions, with n=2 being a matrix. 
 Older R code tends to make extensive use of matrices and arrays, though this has fallen out of fashion recently to the point that older R packages can look quite unusual.
 
 The list allows elements to be of any type, and so also allows nesting for some approximation of multi-dimensionality. 
@@ -305,7 +305,7 @@ print.deque <- function(d) {
 
 ```
 
-And here I've implemented this as an S3 class, so we can make a nice looking `print` representation:
+And here I've implemented this as an S3 class, so we can make a nice looking `print` representation (and could be a neater way to implement `length`, i.e. as `length(my_deque)` rather than `my_deque$len`).
 
 ```{r}
 my_deque <- deque(letters[1:5])
