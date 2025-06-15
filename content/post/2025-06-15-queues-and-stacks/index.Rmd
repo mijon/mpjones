@@ -1,0 +1,352 @@
+---
+title: Queues and Stacks
+author: Michael
+date: '2025-06-15'
+slug: queues-and-stacks
+categories:
+  - R
+tags:
+  - advent-of-code
+---
+
+
+Hello, it's been a while.
+
+Anyway, here's a post about data structures.
+
+If all you have is a hammer, every problem's a nail. 
+If all you have is R, then it's tempting to attack every problem with a data.frame. 
+
+The data.frame occupies such a central place in R's ecosystem and so much tooling has been created around it, that I often find myself squashing a problem into a form that favours a data.frame-based solution rather than using a better tool, more suited to the problem.
+There are other data structures that can make one's life easier.
+
+## Recap of R's main data structures
+
+As well as the data.frame, R has a small core of data structures available, including
+
+- The vector
+- The matrix and array
+- The list
+- The factor
+
+Vectors are 1-dimensional arrays of values of a single type.
+The matrix allows 2-dimensional data arranged rectangularly, but still requires all elements to be the same type.
+The array allow's n-dimensions, with n=2 being a matrix. 
+Older R code tends to make extensive use of matrices and arrays, though this has fallen out of fashion recently to the point that older R packages can look quite unusual.
+
+The list allows elements to be of any type, and so also allows nesting for some approximation of multi-dimensionality. 
+One can think of a data.frame as a list of vectors of the same length.
+
+Finally, the factor is a very R data structure. 
+It neatly encodes the concept of categorical variables (and by extension ordered variables) and shows R's rich statistical pedigree.
+
+But R does lack some 'fundamental' computer science data structures natively.
+
+In this post I will talk about one way to implement stacks, queues, and deques. 
+
+## Stacks and Queues
+
+Stacks and Queues are collection concepts, where items are added to the collection and are removed from the collection. 
+The differences is in what order the items leave.
+
+A stack is analogous to a pile of playing cards.
+You can add a card to the top of the pile, and you can take the top card off the pile.
+Adding the Ace of Hearts, then the Jack of clubs, then the Queen of diamonds in order, means that you need to take the Queen off before you can take the Jack off.
+It's a "last in, first out" data structure.
+
+Whereas, the queue should be intimately familiar to most people. 
+Especially the British.
+Items join the back of the queue, and leave from the front.
+So it's a "first in, first out" data structure.
+
+For both of these structures, when we add an item we say that we "push" it onto the stack/queue, and when we take an item off, we "pop" it.
+
+Finally, a data structure that allows you to push to either end or to pop from either end is a "deque". 
+
+## Function Environments
+
+Let's take the time to be very specific about the interface and actions we want for our stack.
+
+We want to be able to initialise it, either empty or with a pre-loaded set of values.
+Then we want to be able to push an item onto the stack, and get the new stack back.
+
+But when we pop from the stack, we want our function to return the item that's popped, but change the stack in the background.
+
+This means that we need to implement a data structure that has some state.
+
+There are a few ways to do this, the most obvious being to use one of R's encapsulated object systems, but we can also abuse how functions work to make a sort of 'poor man's OO'. 
+The reason is that functions in R are really **closures**, i.e. code that *encloses* an environment. 
+Generally, they enclose (or point to) the Global Environment, but we can always create a function that points to a specific environment.
+
+A simple example is that of a counter. 
+Rather than storing a counter value in a global namespace and then acting on it with a function that edits this global value, we can put the value inside the environment of the function. 
+As each function gets its own environment in which to store its state, we can have as many counters as our memory allows without having to come up with new variable names for the states:
+
+
+```{r}
+counter <- function(init) {
+  value <- init
+  
+  inc <- function() {
+    value <<- value + 1
+    value
+  }
+  
+  list(
+    inc = inc
+  )
+}
+```
+
+Here we make a function called `counter` that just accepts a value to initialise on.
+Inside `counter`, we define a function called `inc` that increments the value, using `<<-` to make sure that we edit the value of `value` not inside the scope of `inc`, but inside the scope of `counter`.
+Then we return a list from `counter` that just contains the `inc` function.
+We use it as so:
+
+```{r}
+a <- counter(0)
+
+a$inc()
+a$inc()
+a$inc()
+```
+
+If we also initialse another counter, and increment it, we see they are totally independent: 
+
+```{r}
+b <- counter(100)
+b$inc()
+```
+
+And we can access the current value of the state using the `environment()` function:
+
+```{r}
+environment(a$inc)
+environment(a$inc) |> ls()
+environment(a$inc)[["value"]]
+```
+
+## Implementing a Queue
+
+Now we're ready to implement a queue.
+We need the following features:
+
+- A way to initialise the queue
+- A way to push items onto the queue
+- A way to pop items off the queue (accessing what we pop)
+- A way to get the length of the queue
+- A way to get the all the values in the queue
+
+We will proceed with a similar function-based pattern as above, so each of these requirements (except initialisation) will be represented as a function that's returned as an element in the list returned from the main `queue` function:
+
+The code is reasonably simple:
+
+```{R}
+queue <- function(v) {
+  env <- new.env()
+  assign("values", value = v)
+  
+  give <- function() {
+    get("values", env)
+  }
+  
+  pop <- function(n = 1) {
+    values <- give()
+    output <- head(values, n)
+    assign("values", value = tail(values, -n),
+           envir = env)
+    output
+  }
+  
+  push <- function(x) {
+    new <- append(give(), x)
+    assign("values", value = new,
+           envir = env)
+  }
+  
+  len <- function() {
+    length(give())
+  }
+  
+  list(
+    get = give,
+    pop = pop,
+    push = push,
+    len = len
+  )
+}
+```
+
+The first two lines make a new environment called `env`. 
+We do this so it gives us a named environment that we can refer to in the later functions. 
+It is inside `env` that we place the values using the `assign` function, which is a fancier version of `<-` assignment where we also get to specify the environment that the assignment happens in. 
+
+Then we define our functions.
+`give` is a convenience function that `get`s the values from our pocket environment.
+
+`pop` is the implementation of getting 1 (by default) or more values out of the queue. 
+First we get the values out using `give`. 
+Then we make out output, which is the first `n` values of the queue.
+Then we re-assign the value of the queue to be the original queue without the values we just popped off.
+
+`push` is the implementation of adding values to the queue. 
+We just reassign the "values" inside the queue to be the concatenation of the new values with what was there before.
+
+Finally `len` is simply the number of items in the queue.
+
+The output is a list of these functions and we can use them as follows:
+
+```{r}
+my_queue <- queue(letters[1:5])
+my_queue$get()
+```
+
+push some more letters onto the queue:
+
+```{r}
+my_queue$push(c("F"))
+```
+
+which just does it's thing silently, so let's check:
+
+```{r}
+my_queue$get()
+```
+
+And we see that "F" has joined the back of the queue.
+
+Then we can get the first item out the front of the queue:
+
+```{r}
+my_queue$pop()
+```
+
+which **does** return a value. 
+And we see that the queue has changed:
+
+```{r}
+my_queue$get()
+```
+
+## Stacks
+
+Stacks are similar, except our push implementation just needs to add to the front, rather than the back. 
+So we'd have
+
+
+```{r}
+push <- function(x) {
+  new <- append(x, give()) # <-- note the order change
+  assign("values", value = new, envir = env)
+}
+```
+
+instead.
+
+## Deques
+
+With a deque, we want to be able to push to either the front or the back, and also pop from both sides.
+
+The implementation is straight forward, but just invovles a few more functions:
+
+```{r}
+deque <- function(values) {
+  
+  env <- new.env()
+  assign("values", value = values)
+  
+  give <- function() {
+    get("values", env)
+  }
+  
+  pop_front <- function(n = 1) {
+    values <- give()
+    output <- head(values, n)
+    assign("values", value = tail(values, -n), envir = env)
+    output
+  }
+  
+  pop_back <- function(n = 1) {
+    values <- give()
+    output <- tail(values, n)
+    assign("values", value = head(values, -n), envir = env)
+    rev(output)
+  }
+  
+  push_front <- function(x) {
+    new <- append(x, give())
+    assign("values", value = new, envir = env)
+  }
+  
+  push_back <- function(x) {
+    new <- append(give(), x)
+    assign("values", value = new, envir = env)
+  }
+  
+  len <- function() {
+    length(give())
+  }
+
+  output <- list(
+    get = give,
+    pop_front = pop_front,
+    pop_back = pop_back,
+    push_front = push_front,
+    push_back = push_back,
+    len = len
+  )
+  class(output) <- "deque"
+  output
+}
+
+print.deque <- function(d) {
+  print(d$get())
+}
+
+```
+
+And here I've implemented this as an S3 class, so we can make a nice looking `print` representation:
+
+```{r}
+my_deque <- deque(letters[1:5])
+my_deque
+```
+
+Push "Z" to the front, then "F" to the back:
+
+```{r}
+my_deque$push_front("Z")
+my_deque$push_back("F")
+my_deque
+```
+
+Then we can pop two off the front, and one off the back:
+
+```{r}
+my_deque$pop_front(n = 2)
+my_deque$pop_back(n = 1)
+```
+
+Giving us 
+
+```{r}
+my_deque$len()
+```
+
+Four items left, which are:
+
+```{r}
+my_deque
+```
+
+
+## Conclusion
+
+By using R's function environments, it doesn't take a huge amount of code to implement these data structures.
+
+I'm not sure how performant they are: you'd likely get a better result if you were to use something like Rcpp or Rextendr to 'borrow' C++ or Rust implementations of these data structures, but where's the fun in that?
+
+Likewise, the pattern of environments and functions that return list of functions that act on those environments (like the `counter` example) is one way to set up some form of encapsulated state. 
+This could be useful in, e.g. an agent based model or similar simulations. 
+
+
