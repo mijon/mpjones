@@ -1,0 +1,425 @@
+---
+title: Zippers and Comonads
+author: Michael
+date: '2025-08-06'
+slug: zippers-and-comonads
+categories:
+  - R
+  - functional programming
+tags: []
+---
+
+I've been learning a few more interesting data structures recently and I thought I'd share what I found.
+Nothing in this post is particularly original, though I've not seen much about zippers and comonads *in R specifically*. 
+The general direction of this post broadly follows Elias Jordan's excellent Compose Conference talk called [Life is a Comonad](https://www.youtube.com/watch?v=6eiS2QTQKPE).
+While Jordan's talk is on Scala, if you enjoyed this post, I'd recommend watching the talk.
+
+# Zippers
+
+A list is a collection data structure, it stores a bunch of objects in an order. 
+You tend to deal either with the list as a whole, or specific elements by slicing or indexing into it.
+When you index into a list to get a specific value, the index is often separated from the list itself:
+
+```{r}
+my_list <- list("a", "b", "c", "d", "e")
+my_index <- 2
+my_list[[my_index]]
+```
+
+Here, `my_list` exists entirely independently from the index. 
+Indeed, if we are running a program where we need to keep a focus on a specific element in the list, we will likely keep the index of the element as a variable in our scope. 
+The list has no idea that we're focusing on any particular element.
+
+Enter the zipper.
+
+In their essence, zippers are a container type like a list (though also a tree as originally presented in 1997 by Geraud Haut in his functional pearl [The Zipper](https://www.st.cs.uni-saarland.de/edu/seminare/2005/advanced-fp/docs/huet-zipper.pdf)), equiped with a "focus".
+This is the (structural) highlighting of some particular element. 
+
+The common way to define a zipper of lists is to break a list into three parts:
+
+1. Everything to the left of our focus element
+2. The single element of the list at our focus
+3. Everything to the right of our focus element
+
+An implementation detail is that usually the first list is reversed.
+This is especially important for linked-list data structures (as you might find in LISPs, but not that commonly in R), as getting the first element of a linked-list is an O(1) operation, so when we want to move our focus over to the next element having that be the head of our left list is more efficient.
+The alternative would be storing the left list "in order", meaning we'd need to grab the element at the end of the list, an O(n) operation for linked lists.
+
+Graphically, say we had our list from before (letters of a to e), with a focus on "c":
+
+```
+a   b   c   d   e   
+        ^
+      focus
+```
+
+We store this in our data structure as:
+
+```
+left list  : b   a
+focus      : c
+right list : d   e
+```
+
+We can implement this in R with the following S3 class definition and a helper function:
+
+```{r}
+zipper <- function(left, focus, right) {
+  structure(
+    list(left = left,
+         focus = focus,
+         right = right),
+    class = "zipper"
+  )
+}
+
+zipper_from_list <- function(l) {
+  zipper(left = list(),
+         focus = head(l, n = 1)[[1]],
+         right = tail(l, n = -1)
+  )
+}
+```
+
+The definition is simple and doesn't really do anything. 
+We're going to assume that the `left` list comes pre-reversed (this makes things easier later on).
+
+`zipper_from_list` is our simple helper function so we don't have to slice up the input list ourselves:
+
+```{r}
+my_zipper <- zipper_from_list(my_list)
+my_zipper
+```
+
+
+`format` and `print` methods are reasonably easy for a zipper like this, but we'll not write them today as we want to be clear about the internal structure.
+
+In the above, you can see our default zipper for a list, i.e. we are `focus`ing on the first element of the original list, and all the rest goes in the `right` part.
+
+# Using a zipper
+
+This is all well and good, but we need a way to change the focus of the zipper. 
+We need to be able to shift it either right or left.
+We'll set these up as S3 generics so we can apply the same concept to similar objects later on.
+
+```{r}
+z_right <- function(z) {
+  UseMethod("z_right")
+}
+
+z_left <- function(z) {
+  UseMethod("z_left")
+}
+```
+
+Then we can define methods for the `zipper` class.
+
+```{r}
+z_right.zipper <- function(z) {
+  if (length(z$right) == 0) {
+    return(zipper(left = NA, focus = NA, right = NA))
+  }
+  zipper(
+    left = append(z$left, z$focus, after = 0),
+    focus = head(z$right, n = 1)[[1]],
+    right = tail(z$right, n = -1)
+  )
+}
+
+z_left.zipper <- function(z) {
+  if (length(z$left) == 0) {
+    return(zipper(left = NA, focus = NA, right = NA))
+  }
+  zipper(
+    left = tail(z$left, n = -1),
+    focus = head(z$left, n = 1)[[1]],
+    right = append(z$right, z$focus, after = 0)
+  )
+}
+```
+
+These follow broadly the same pattern:
+
+- We first handle the edge case, i.e. what do you get back if you try to go `left` on a zipper that's already at the most left if can go? 
+  To make things slightly clearer, I just return an entirely empty zipper.
+  Alternatives would be to return an `NA` focus with the entire data in the `right` or `left` part as appropriate, or perhaps return some form of Option/Maybe type, or to not change the zipper at all (i.e. eventually `z_left()` becomes idempotent)
+- Then we handle the normal case, considering `z_left` as an example, we return a new zipper:
+  - As we're moving the focus left, we need to pop the top element off the `left` list, keeping the remainder
+  - We need to change the focus to what used to be the head of `left`
+  - We put what used to be the focus as the new head of `right`
+
+```{r}
+my_zipper |> z_right()
+```
+
+See here the focus has moved to `"b"`, and `"a"` now appears in the `left` part.
+
+If we run this twice:
+
+```{r}
+my_zipper |> z_right() |> z_right()
+```
+
+We see that the `left` part is indeed the reverse of the data from the original list.
+
+# Getting a value out
+
+As we have a data structure that makes such a big deal about being able to focus on an element, it would be nice to be able to get that element. 
+We'll call this `extract`, and it's simply to return the `focus` value:
+
+```{r}
+extract <- function(z) {
+  UseMethod("extract")
+}
+
+extract.zipper <- function(z) {
+  z$focus
+}
+```
+
+As so:
+
+```{r}
+my_zipper |> extract()
+my_zipper |> z_right() |> extract()
+```
+
+
+# Map
+
+The `map` function from the purrr package is a personal favourite. 
+Unfortunately, it's not a generic and only works for lists. 
+
+But it would be very useful to be able to map a function over all elements of our zipper, so we'll implement our own generic called `fmap` which will be a more general version of `map`.
+
+```{r}
+fmap <- function(z, f, ...) {
+  UseMethod("fmap")
+}
+
+fmap.zipper <- function(z, f) {
+  zipper(
+    left = fmap(z$left, f),
+    focus = f(extract(z)),
+    right = fmap(z$right, f)
+  )
+}
+```
+
+Hopefully it's clear what we're doing here.
+Given a function `f` to map over our zipper, we:
+
+- Map the function over all the elements in the `left` part
+- Apply the function to the focus (taking advantage of the `extract` method)
+- Map the function over all the elements in the `right` part
+- Combine these into a new zipper
+
+While we are here, we may as well define an `fmap` for lists, so we can elide over the distinction when mapping:
+
+```{r}
+fmap.list <- purrr::map
+```
+
+As so:
+
+```{r}
+fmap(my_zipper, toupper)
+```
+
+Or 
+
+```{r}
+fmap(my_zipper, \(x) strrep(x, 4))
+```
+
+
+# Comonads
+
+Okay, we've done a lot on zippers, but we're actually half way towards defining a comonad.
+
+It's more common for people to have heard of monads, but these aren't those.
+Category theory is a wonderful thing in that whenever you find something, you can reverse all the arrows, slap a "co" on the front, and realise you've really found two things.
+
+Monads have a way to 
+
+- put values into a monad
+- chain monads together (sequence them)
+
+Comonads have a way to
+
+- get a value out of the comonad
+- split comonads apart (in some sense)
+
+The Haskell definition is:
+
+```haskell
+class Comonad m where
+  extract :: w a -> a
+  duplicate :: w a -> w (w a)
+```
+
+Our zipper class already has extract (we can go from a zipper of values to a single value).
+So we just need to implement a duplicate.
+I'm going to call this function `cojoin`.
+
+What `cojoin` will do is go from a zipper with some particular focus to a zipper of zippers generated from the original zipper. 
+The focus on this zipper of zippers is the original zipper, and all the other elements are the original zipper shifted left or right. 
+In this sense, `cojoin` can generalise from a single zipper data structure to a data structure that represents all the possible focuses.
+
+The implementation can be made with a few helper functions:
+
+```{r}
+lefts <- function(z) {
+  output <- list()
+  while (length(z$left) > 0) {
+    z <- z_left(z)
+    output <- append(output, list(z))
+  }
+  output
+}
+
+rights <- function(z) {
+  output <- list()
+  while (length(z$right) > 0) {
+    z <- z_right(z)
+    output <- append(output, list(z))
+  }
+  output
+}
+```
+
+`lefts` and `rights` generate a list of the original zipper with all the shifts left or right up to the end.
+
+As an example, let's apply `rights` to our `my_zipper` (currently focused on the first element, "a").
+For simplicity, we will `fmap` `extract` over this list of zippers, so we can summarise them by their focus:
+
+```{r}
+rights(my_zipper) |>
+  fmap(extract)
+```
+
+Then out `cojoin` is simply to make a new zipper with the `left` element being the application of `lefts()` to our input zipper, and `right` being the application of `rights` to our input zipper.
+
+Here's the implementation:
+
+```{r}
+cojoin <- function(z) {
+  zipper(
+    left = lefts(z),
+    focus = z,
+    right = rights(z)
+  )
+}
+```
+
+
+# Sure, but what can we do with that?
+
+One simple example is a sliding average.
+
+Say you have a list of numbers and you want to calculate the sliding average (let's say a window of 3 elements).
+We can construct a zipper, apply `cojoin` to generate a new zipper of all the focuses, then apply the average function.
+
+```{r}
+average_three <- function(l, m, r) {
+  mean(c(l, m, r), na.rm = TRUE)
+}
+
+zipper_mean <- function(z) {
+  l <- z |> z_left() |> extract()
+  m <- z |> extract()
+  r <- z |> z_right() |> extract()
+  average_three(l, m, r)
+}
+
+my_number_zip <- zipper_from_list(list(1,2,3,4,5))
+my_number_zip |> cojoin() |> fmap(zipper_mean)
+```
+
+Note here, we've defined a function that acts locally (`average_three`) and applied it globally using the zipper.
+
+Just as a map separates the function you want to apply to each element from the work of applying it to multiple elements, zippers and comonads separate the function you apply in the local context from the mechanisms of applying it in the global context.
+
+# Cellular Automata
+
+Another classic example of comonads is in cellular automata. 
+Defining CAs is beyond the scope of this post, so I will assume you know what they are. 
+But they are another instance of local rules being applied multiple times to generate a global state change.
+
+As an example, we're going to use the CA defined in [advent of code day 18 from 2016](https://adventofcode.com/2016/day/18). 
+
+The rules for generating the next generation are all on the problem description, but here's an implementation:
+
+We start by defining a helper function to handle NA values (in the problem spec the edges are essentially a ring of additional "safe" tiles, so we make any NA values returned at the edge of the zipper into some default value).
+
+```{r}
+`%default%` <- function(x, y) {
+  if (is.na(x)) y else x
+}
+```
+
+Then the CA logic is encapsulated as:
+
+```{r}
+aoc_ca <- function(l, m, r) {
+    dplyr::case_when(
+    l == "^" && m == "^" && r == "." ~ "^",
+    l == "." && m == "^" && r == "^" ~ "^",
+    l == "^" && m == "." && r == "." ~ "^",
+    l == "." && m == "." && r == "^" ~ "^",
+    TRUE ~ "."
+  )
+}
+```
+
+And we make our zipper handler as so:
+
+```{r}
+z_ca <- function(z) {
+  l <- z |> z_left() |> extract() %default% "."
+  m <- z |> extract()
+  r <- z |> z_right() |> extract() %default% "."
+  aoc_ca(l, m, r)
+}
+```
+
+Let's take the example from the problem spec as our input.
+We will extract the string and transform it into a zipper:
+
+
+```{r}
+aoc_zipper <- zipper_from_list(stringr::str_split(".^^.^.^^^^", "")[[1]])
+```
+
+We easily define a step in the CA using our comonad infrastructure:
+
+```{r}
+step <- function(z) {
+  z |> cojoin() |> fmap(z_ca)
+}
+```
+
+We want one final helper function to go from a zipper into a list (this handles the un-reversing of the `left` side).
+
+```{r}
+zipper_to_list <- function(z) {
+  purrr::flatten(list(rev(z$left), list(extract(z)), z$right))
+}
+```
+
+And finally we generate the first few lines/generations of the CA:
+
+```{r}
+run <- function(z, n = 5) {
+  for (i in 1:n) {
+    z |> zipper_to_list() |> paste0(collapse = "") |> cat("\n")
+    z <- step(z)
+  }
+}
+
+run(aoc_zipper, 10)
+```
+
+So once again, we've defined a local function (`aoc_ca`) and used the comonad nature of the zippers to apply this globally.
+
+
