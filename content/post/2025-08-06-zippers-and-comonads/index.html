@@ -295,7 +295,7 @@ Category theory is a wonderful thing in that whenever you find something, you ca
 <li>split comonads apart (in some sense)</li>
 </ul>
 <p>The Haskell definition is:</p>
-<pre class="haskell"><code>class Comonad m where
+<pre class="haskell"><code>class Comonad w where
   extract :: w a -&gt; a
   duplicate :: w a -&gt; w (w a)</code></pre>
 <p>Our zipper class already has extract (we can go from a zipper of values to a single value).
@@ -338,7 +338,7 @@ For simplicity, we will <code>fmap</code> <code>extract</code> over this list of
 ## 
 ## [[4]]
 ## [1] &quot;e&quot;</code></pre>
-<p>Then out <code>cojoin</code> is simply to make a new zipper with the <code>left</code> element being the application of <code>lefts()</code> to our input zipper, and <code>right</code> being the application of <code>rights</code> to our input zipper.</p>
+<p>Then our implementation of <code>cojoin</code> is simply to make a new zipper with the <code>left</code> element being the application of <code>lefts()</code> to our input zipper, and <code>right</code> being the application of <code>rights</code> to our input zipper.</p>
 <p>Here’s the implementation:</p>
 <pre class="r"><code>cojoin &lt;- function(z) {
   zipper(

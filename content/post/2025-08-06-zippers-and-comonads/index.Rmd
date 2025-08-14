@@ -253,7 +253,7 @@ Comonads have a way to
 The Haskell definition is:
 
 ```haskell
-class Comonad m where
+class Comonad w where
   extract :: w a -> a
   duplicate :: w a -> w (w a)
 ```
@@ -298,7 +298,7 @@ rights(my_zipper) |>
   fmap(extract)
 ```
 
-Then out `cojoin` is simply to make a new zipper with the `left` element being the application of `lefts()` to our input zipper, and `right` being the application of `rights` to our input zipper.
+Then our implementation of `cojoin` is simply to make a new zipper with the `left` element being the application of `lefts()` to our input zipper, and `right` being the application of `rights` to our input zipper.
 
 Here's the implementation:
 
